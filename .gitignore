@@ -1,3 +1,10 @@
+examples/**
+!examples/refs.bib
+examples/vault/**
+!examples/vault/*.md
+
+# default python ignores
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

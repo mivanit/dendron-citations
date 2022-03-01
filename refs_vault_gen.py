@@ -102,7 +102,7 @@ DEFAULT_TEMPLATE : str = """
 {{#_bln_keywords}}# Keywords
 {{/_bln_keywords}}
 {{#keywords}}
- - {{elt}}
+ - #{{elt}}
 {{/keywords}}
 
 {{#_bln_files}}# Files
@@ -196,7 +196,7 @@ class CitationEntry:
 		note.yaml_data['authors'] = self.authors
 		note.yaml_data['bibtex_key'] = self.bib_key
 		note.yaml_data['__bibtex__'] = self.bib_meta
-		note.yaml_data['__entry__'] = self.serialize()
+		# note.yaml_data['__entry__'] = self.serialize()
 
 		note.content = chevron.render(template, self.serialize())
 
