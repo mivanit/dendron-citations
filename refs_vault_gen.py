@@ -1,44 +1,5 @@
-"""generating a vault of dendron notes corresponding to entries from a bibtex file (or in a zotero library)
+"""generates a vault of dendron notes corresponding to entries from a bibtex file
 
-
-# desired features:
-
-## bibtex integration
-given a bibtex file, generate a vault of dendron notes bibtex keys as filenames
-
-- add tags and other things from bibtex to metadata
-- "beneath" each note for the bibtex, add another note for the citation itself.
-	- note that this will all break if the bibtex keys change!
-- this allows the user to reference the dendron notes instead of raw bibtex item
-	- lets us use backlink features from dendron to see where something is cited
-
-## zotero integration
-
-do everything as for bibtex integration, but also:
-
-- add links/copies in zotero to the dendron notes (when they exist)
-- have zotero item materials inside dendron file
-	- zotero notes, plaintext attachments inline
-	- links to all other attachments
-	- exclude the dendron file to avoid recursion, haha
-
-## other
-
-- to allow simpler references to papers, without having to type `[[dendron://refs-vault/<bibtex key>]]`, the user may create a snippet:
-```json
-"dendron-cite": {
-	"prefix": "@",
-	"body": [
-		"[[dendron://refs-vault/refs.$1]]"
-	],
-	"description": "dendron reference citation"
-},
-```
-
-
-# dependencies:
-- https://github.com/t-wissmann/biblib
-	- note: forked from https://github.com/aclements/biblib, which no longer works
 
 """
 
