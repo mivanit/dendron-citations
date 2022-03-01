@@ -11,6 +11,7 @@ generates a vault of dendron notes corresponding to entries from a bibtex file
 
 this allows the user to reference the dendron notes instead of raw bibtex item (such as when using [PandocCiter](https://github.com/notZaki/PandocCiter)), which lets us use backlink features from dendron to see where we have cited a paper
 
+> Note: I personally put all my references in a separate vault from my main vault, to avoid clutter. I highly recommend this, since this *might* also prevent you from accidentally overwriting things in your main vault.
 
 ## Usage: 
 
@@ -51,6 +52,9 @@ py refs_vault_gen.py examples/refs.bib examples/vault/refs.
 - [ ] optional generation of tag files?
 - [ ] make citations work properly when compiling with [Pandoc](https://pandoc.org/)
 	- probably best to do this as part of [dendron-pandoc](https://github.com/mivanit/dendron-pandoc)
+- [ ] turn this into a real vscode plugin
+	- mostly to simplify installation 
+	- will probably use [`vscode-ext`](https://github.com/CodeWithSwastik/vscode-ext)
 
 ## zotero integration
 
