@@ -24,9 +24,12 @@ for example, if the script and a bibtex file `refs.bib` are both located in the 
 ```bash
 python refs_vault_gen.py refs.bib vault/refs.
 ```
-
 this will create notes of the form `refs.some-bibtex-key.md` in the `vault/` directory.
 
+Given the bibtex file `examples/refs.bib`, the vault `examples/vault/` was generated with
+```bash
+py refs_vault_gen.py examples/refs.bib examples/vault/refs.
+```
 
 
 # Roadmap:
@@ -69,3 +72,5 @@ do everything as for bibtex integration, but also:
 - https://github.com/t-wissmann/biblib
 	- needs to be installed manually, not on pypi
 	- note: forked from https://github.com/aclements/biblib, which no longer works
+- [`chevron`](https://github.com/noahmorrison/chevron)
+	- python implementation of the [mustache](https://mustache.github.io) templating language
