@@ -119,15 +119,16 @@ class PandocMarkdown(object):
 			writer : Callable[[dict],str] = lambda x : yaml.dump(x, default_flow_style = None, sort_keys = False),
 		) -> None:
 		
-		self.delim = delim
-		self.loader = loader
-		self.keyorder = keyorder
-		self.writer = writer
+		self.delim : str = delim
+		self.loader : Callable[[str],dict] = loader
+		self.keyorder : List[str] = keyorder
+		self.writer : Callable[[dict],str] = writer
 
+		self.initialized : bool = False
 		# get the first section and parse as yaml
-		self.yaml_data : Dict[str, Any] = None
+		self.yaml_data : Dict[str, Any] = dict()
 		# get the content
-		self.content : str = None
+		self.content : str = ''
 
 	def load(self, filename : str) -> None:
 		"""load a file into the pandoc markdown object
@@ -152,6 +153,8 @@ class PandocMarkdown(object):
 		self.yaml_data : Dict[str, Any] = self.loader(sections[1])
 		# get the content
 		self.content : str = self.delim.join(sections[2:])
+
+		self.initialized : bool = True
 
 	def update_time(self) -> None:
 		"""updates the updated time in the frontmatter"""

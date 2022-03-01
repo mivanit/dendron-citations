@@ -11,12 +11,111 @@ from collections import OrderedDict
 from dataclasses import dataclass,asdict
 
 import yaml
+import chevron # implementation of mustache templating
 import biblib.bib
 
 from md_util import PandocMarkdown
 
 OptionalStr = Optional[str]
 OptionalListStr = Optional[List[str]]
+
+def strip_bibtex_fmt(s : str) -> str:
+	return (
+		s
+		.replace('{', '')
+		.replace('}', '')
+		.replace('\n', '  ')
+		.replace('\r', '')
+		.replace('\t', '  ')
+		.strip()
+		.rstrip(',')
+		# .replace('\\', '')
+	)
+
+def safe_get(
+		d : Dict, 
+		key : str,
+		default_factory : Callable = lambda : None,
+		process : Callable = strip_bibtex_fmt,
+	) -> str:
+	
+	if key in d:
+		try:
+			return str(d[key])
+		except KeyError:
+			return default_factory()
+	else:
+		return default_factory()
+
+def safe_get_any(
+		d : Dict, 
+		keys : List[str],
+		default_factory : Callable = lambda : None,
+		process : Callable = strip_bibtex_fmt,
+	) -> str:
+	
+	for key in keys:
+		if key in d:
+			try:
+				return str(d[key])
+			except KeyError:
+				return default_factory()
+	
+	return default_factory()
+
+def safe_get_split(
+		d : Dict, 
+		key : str, 
+		sep : str, 
+		default_factory : Callable = list,
+		process : Callable = strip_bibtex_fmt,
+	) -> List[str]:
+
+	if key in d:
+		try:
+			return list([
+				process(x)
+				for x in str(d[key]).split(sep)
+			])
+		except KeyError:
+			return default_factory()
+	else:
+		return default_factory()
+
+
+DEFAULT_TEMPLATE : str = """
+
+# {{title}}
+
+{{#_bln_authors}}# Authors
+{{/_bln_authors}}
+{{#authors}}
+ - {{elt}}
+{{/authors}}
+
+{{#_bln_links}}# Links
+{{/_bln_links}}
+{{#links}}
+ - [`{{elt}}`]({{elt}})
+{{/links}}
+
+{{#_bln_keywords}}# Keywords
+{{/_bln_keywords}}
+{{#keywords}}
+ - {{elt}}
+{{/keywords}}
+
+{{#_bln_files}}# Files
+{{/_bln_files}}
+{{#files}}
+ - [`{{elt}}`]({{elt}})
+{{/files}}
+
+{{#abstract}}
+# Abstract  
+{{abstract}}
+{{/abstract}}
+"""
 
 @dataclass(frozen = True)
 class CitationEntry:
@@ -27,7 +126,7 @@ class CitationEntry:
 	authors : OptionalListStr = None
 	typ : OptionalStr = None
 	date : OptionalStr = None
-	links : Optional[OrderedDict[str, str]] = None
+	links : OptionalListStr = None
 	files : OptionalListStr = None
 	keywords : OptionalListStr = None
 	collections : OptionalListStr = None
@@ -37,56 +136,76 @@ class CitationEntry:
 	@staticmethod
 	def from_bib(bib_key, bib_entry : biblib.bib.Entry) -> 'CitationEntry':
 		"""create a citation entry from a biblib entry"""
-		return CitationEntry(
-			bib_key = bib_key,
-			title = bib_entry.title,
-			authors = bib_entry.authors,
-			typ = bib_entry.typ,
-			date = bib_entry.date,
-			links = bib_entry.links,
-			files = bib_entry.files,
-			keywords = bib_entry.keywords,
-			collections = bib_entry.collections,
-			abstract = bib_entry.abstract,
-			bib_meta = bib_entry.meta,
-		)
-
-
-def BibDatabase_serialize(db: Dict[str, biblib.bib.Entry]) -> Dict[str, Dict]:
-	db_dict : Dict[str, Dict] = dict()
-
-	for key, entry in db.items():
-		
-		temp_od : OrderedDict = OrderedDict(entry)
-		temp_meta : dict = dict()
-
-		temp_meta['typ'] = entry.typ
-		temp_meta['key'] = key
-
-		temp_meta['authors_lst'] = list()
+		authors : List[str] = []
 		try:
-			temp_authors_lst : List[str] = [
-				f'{nm.last}, {nm.first}'
-				for nm in entry.authors()
+			authors = [
+				strip_bibtex_fmt(f'{nm.first} {nm.last}')
+				for nm in bib_entry.authors()
 			]
 		except biblib.bib.FieldError as e:
 			print('WARNING: ', e)
-			temp_meta['authors_lst'] = list()
 
-		temp_meta['keywords_lst'] = entry['keywords'].split(',') if 'keywords' in entry else []
-		temp_meta['files_lst'] = entry['files'].split(';') if 'files' in entry else []
-		temp_meta['title_txt'] = entry['title'].replace('{', '').replace('}', '').replace('\n', ' ').replace('\r', '')
+		return CitationEntry(
+			bib_key = bib_key,
+			title = safe_get(bib_entry, 'title'),
+			authors = authors,
+			typ = safe_get(bib_entry, 'typ'),
+			date = safe_get(bib_entry, 'date'),
+			links = safe_get_split(bib_entry, 'url', ';'),
+			files = safe_get_split(bib_entry, 'files', ';'),
+			keywords = safe_get_split(bib_entry, 'keywords', ','),
+			collections = safe_get_split(bib_entry, 'collections', ','),
+			abstract = safe_get_any(bib_entry, ['abstract', 'abstractnote', 'abstractNote', 'summary']),
+			bib_meta = dict(bib_entry),
+		)
 
-		db_dict[key] = dict({
-			**temp_od,
-			**temp_meta,
-		})
+	def serialize(self) -> Dict:
+		"""serialize the object as a dict
+		
+		- lists into lists of dicts: 
+			mustache only allows lists of dicts, not of literals
+			so, each list of str is converted to a list of `{'elt' : val}`
+
+		- booleans for list presence:
+		    no way in moustache to check for presence of a list and render something just once
+			so, for each iterable with key `name`, we add a key `_bln_name` with value `True`
+
+		"""
+		d_basic : Dict = asdict(self)
+		d_out : Dict = dict()
+		for k,v in d_basic.items():
+			if isinstance(v, (list, tuple)):
+				if all(isinstance(x, str) for x in v):
+					d_out[k] = [{'elt' : x} for x in v]
+			else:
+				d_out[k] = v
+
+			if isinstance(v, (list, tuple, dict)):
+				d_out['_bln_' + k] = bool(v)
+
+		return d_out
 
 
-	return db_dict
+	def to_md(self, template : str = DEFAULT_TEMPLATE) -> PandocMarkdown:
+		"""create a markdown string from a template"""
+		note : PandocMarkdown = PandocMarkdown.get_dendron_template()
+
+		note.yaml_data['title'] = self.title
+		note.yaml_data['tags'] = self.keywords
+		note.yaml_data['attached_files'] = self.files
+		note.yaml_data['authors'] = self.authors
+		note.yaml_data['bibtex_key'] = self.bib_key
+		note.yaml_data['__bibtex__'] = self.bib_meta
+		note.yaml_data['__entry__'] = self.serialize()
+
+		note.content = chevron.render(template, self.serialize())
+
+		return note
 
 
-def load_bibtex(filename : str) -> OrderedDict[str, OrderedDict]:
+
+
+def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 	"""load a bibtex file"""
 	with open(filename, 'r', encoding = 'utf-8') as f:
 		try:
@@ -100,48 +219,16 @@ def load_bibtex(filename : str) -> OrderedDict[str, OrderedDict]:
 			print('WARNING: ', e)
 			raise
 
-	return BibDatabase_serialize(db)
+	return db
 
 
-
-
-
-
-def single_bib_to_dendron(entry : Dict[str, Union[str,List]]) -> PandocMarkdown:
-	"""given a processed bib entry, output a valid dendron file"""
-	note : PandocMarkdown = PandocMarkdown.get_dendron_template()
-
-	# add some metadata
-	# TODO: keep the 'created' date and 'id' from old note?
-	note.yaml_data['title'] = entry['title_txt']
-	note.yaml_data['tags'] = entry['keywords_lst']
-	note.yaml_data['attached_files'] = entry['files_lst']
-	note.yaml_data['authors'] = entry['authors_lst']
-	note.yaml_data['bibtex_key'] = entry['key']
-	note.yaml_data['__bibtex__'] = entry
-
-	# add things to the markdown body
-	note.content = "\n".join([
-		"",
-		f"# {entry['title_txt']}",
-		"",
-		f"# file links:",
-		"",
-		"\n".join([
-			f"- [{f}]({f})"
-			for f in entry['files_lst']
-		]),
-		f"paper link: [{entry['title_txt']}]({entry['url']})" if 'url' in entry else "",
-	])
-
-	return note
-
-def all_bib_to_dendron_vault(bib_filename : str, vault_prefix : str = '../../refs-vault/ref.'):
+def full_process(bib_filename : str, vault_prefix : str = '../../refs-vault/ref.'):
 	"""given a bibtex file, output a vault of dendron notes"""
-	db = load_bibtex(bib_filename)
+	db : OrderedDict[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
 
 	for key,val in db.items():
-		note : PandocMarkdown = single_bib_to_dendron(val)
+		entry : CitationEntry = CitationEntry.from_bib(key, val)
+		note : PandocMarkdown = entry.to_md()
 		fname : str = f'{vault_prefix}{key}.md'
 
 		# if the filename exists, get the created time and id from the old note
@@ -160,23 +247,9 @@ def all_bib_to_dendron_vault(bib_filename : str, vault_prefix : str = '../../ref
 		with open(fname, 'w', encoding = 'utf-8') as f:
 			f.write(note.dumps())
 
-
-def test_bib_loader():
-	db = load_bibtex('test.bib')
-	
-	# print(json.dumps(db, indent=2))
-	print(yaml.safe_dump(db, default_flow_style=False))
-	# for key,val in db.items():
-	# 	print(key)
-	# 	for k,v in val.items():
-	# 		print("\t", k, v)
-	# 		print(yaml.safe_dump(v, default_flow_style=False))
-	# 	print(yaml.safe_dump(val, default_flow_style=False))
-
-
 if __name__ == '__main__':
 	import fire
-	fire.Fire(all_bib_to_dendron_vault)
+	fire.Fire(full_process)
 
 
 
