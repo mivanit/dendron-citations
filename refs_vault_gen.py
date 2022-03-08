@@ -32,6 +32,46 @@ def strip_bibtex_fmt(s : str) -> str:
 		# .replace('\\', '')
 	)
 
+def process_tag_name(s : str) -> str:
+	return (
+		s
+		.replace(' - ', '-')
+		.replace(' ', '_')
+		.replace('\t', '__')
+		.replace('\\', '')
+		.replace('\n', '')
+		.replace('/', '-')
+	)
+
+def process_note_HACKY(s : OptionalStr) -> OptionalStr:
+	"""a very very fragile attempt at making the bibtex notes look nice
+
+	TODO: try to detect whether the note is html or latex, and then use pandoc to conver it
+	
+	TODO: eventually this should just get the notes directly from zotero
+	"""
+
+	if s is None:
+		return None
+
+	s = (
+		s
+		.replace('\\par', '\n\n') # replace \par with newlines
+		.replace(r'{$>$}', '>') # undo escaping of `>`
+		.replace(r'$>$', '>')
+		.replace('\\#', '#') # undo escaping of `#`
+		.replace('# ', '## ') # add heading level
+		.replace("`", "\"") # quote escaping
+		.replace("\'", "\"")
+		.replace('\\', '') # get rid of all other backslashes
+		.replace('\n ', '\n') # get rid of extra spaces at beginning of lines. not sure why these show up
+	)
+
+	if s.count('~') / len(s) > 0.1:
+		s = s.replace('~', ' ')
+
+	return s
+
 def safe_get(
 		d : Dict, 
 		key : str,
@@ -113,8 +153,13 @@ DEFAULT_TEMPLATE : str = """
 
 {{#abstract}}
 # Abstract  
-{{abstract}}
+{{&abstract}}
 {{/abstract}}
+
+{{#note}}
+# Notes
+{{&note}}
+{{/note}}
 """
 
 @dataclass(frozen = True)
@@ -131,6 +176,7 @@ class CitationEntry:
 	keywords : OptionalListStr = None
 	collections : OptionalListStr = None
 	abstract : OptionalStr = None
+	note : OptionalStr = None
 	bib_meta : Optional[OrderedDict[str, str]] = None
 
 	@staticmethod
@@ -153,9 +199,16 @@ class CitationEntry:
 			date = safe_get(bib_entry, 'date'),
 			links = safe_get_split(bib_entry, 'url', ';'),
 			files = safe_get_split(bib_entry, 'files', ';'),
-			keywords = safe_get_split(bib_entry, 'keywords', ','),
+			keywords = [
+				process_tag_name(x)	
+				for x in safe_get_split(bib_entry, 'keywords', ',')
+			],
 			collections = safe_get_split(bib_entry, 'collections', ','),
 			abstract = safe_get_any(bib_entry, ['abstract', 'abstractnote', 'abstractNote', 'summary']),
+			note = process_note_HACKY(safe_get_any(
+				bib_entry, 
+				['note', 'notes', 'annote', 'annotations', 'comments']
+			)),
 			bib_meta = dict(bib_entry),
 		)
 
@@ -197,7 +250,7 @@ class CitationEntry:
 		note.yaml_data['attached_files'] = self.files
 		note.yaml_data['authors'] = self.authors
 		note.yaml_data['bibtex_key'] = self.bib_key
-		note.yaml_data['__bibtex__'] = self.bib_meta
+		# note.yaml_data['__bibtex__'] = self.bib_meta
 		# note.yaml_data['__entry__'] = self.serialize()
 
 		note.content = chevron.render(template, self.serialize())
