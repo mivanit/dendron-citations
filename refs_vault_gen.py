@@ -14,7 +14,7 @@ import yaml
 import chevron # implementation of mustache templating
 import biblib.bib
 
-from md_util import PandocMarkdown
+from md_util import PandocMarkdown,gen_dendron_ID
 
 OptionalStr = Optional[str]
 OptionalListStr = Optional[List[str]]
@@ -41,7 +41,7 @@ def safe_get(
 	
 	if key in d:
 		try:
-			return str(d[key])
+			return process(d[key])
 		except KeyError:
 			return default_factory()
 	else:
@@ -57,7 +57,7 @@ def safe_get_any(
 	for key in keys:
 		if key in d:
 			try:
-				return str(d[key])
+				return process(d[key])
 			except KeyError:
 				return default_factory()
 	
@@ -188,7 +188,9 @@ class CitationEntry:
 
 	def to_md(self, template : str = DEFAULT_TEMPLATE) -> PandocMarkdown:
 		"""create a markdown string from a template"""
-		note : PandocMarkdown = PandocMarkdown.get_dendron_template()
+		note : PandocMarkdown = PandocMarkdown.get_dendron_template(
+			fm = {"traitIds" : "referenceNote"},
+		)
 
 		note.yaml_data['title'] = self.title
 		note.yaml_data['tags'] = self.keywords
@@ -241,6 +243,8 @@ def full_process(bib_filename : str, vault_prefix : str = '../../refs-vault/ref.
 			
 			if 'id' in old_note.yaml_data:
 				note.yaml_data['id'] = old_note.yaml_data['id']
+			else:
+				note.yaml_data['id'] = gen_dendron_ID()
 
 		note.update_time()
 
