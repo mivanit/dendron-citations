@@ -110,13 +110,19 @@ DEFAULT_KEYORDER : List[str] = [
 	'traitIds',
 ]
 
+# for some reason, line breaks (such as in the middle of a list) are 
+# either not handled properly by pyyaml, or not understood properly 
+# by dendron's yaml parser. basically, yaml is weird and annoying.
+# so, we set the width very high as a result to prevent this
+DEFAULT_WRITER : Callable = lambda x : yaml.dump(x, default_flow_style = None, sort_keys = False, width = 9999)
+
 class PandocMarkdown(object):
 	def __init__(
 			self, 
 			delim : str = '---',
 			loader : Callable[[str],dict] = yaml.safe_load,
 			keyorder : List[str] = DEFAULT_KEYORDER,
-			writer : Callable[[dict],str] = lambda x : yaml.dump(x, default_flow_style = None, sort_keys = False),
+			writer : Callable[[dict],str] = DEFAULT_WRITER,
 		) -> None:
 		
 		self.delim : str = delim
