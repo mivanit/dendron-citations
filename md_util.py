@@ -39,6 +39,18 @@ def keylist_access_nested_dict(
 
 	return (fin_dict,fin_key)
 
+
+
+def gen_dendron_ID():
+	"""generate a valid dendron ID
+	
+	should be 21 characters, alphanumeric
+	"""
+	
+	return ''.join(random.choices(string.ascii_letters + string.digits, k = 21))
+
+
+
 def fm_add_to_list(
 		data : dict,
 		keylist : List[str],
@@ -200,13 +212,16 @@ class PandocMarkdown(object):
 	}
 
 	@staticmethod
-	def get_dendron_template(fm : dict = DEFAULT_FRONTMATTER) -> 'PandocMarkdown':
+	def get_dendron_template(fm : dict = DEFAULT_FRONTMATTER, do_id : bool = False) -> 'PandocMarkdown':
 		file = PandocMarkdown()
 
 		file.yaml_data = deepcopy(fm)
 		currenttime : int = int(time.time() * 1000)
 		file.yaml_data['created'] = currenttime
 		file.yaml_data['updated'] = currenttime
+
+		if do_id:
+			file.yaml_data['id'] = gen_dendron_ID()
 
 		return file
 
@@ -239,10 +254,3 @@ def update_all_files_fm(
 
 
 
-def gen_dendron_ID():
-	"""generate a valid dendron ID
-	
-	should be 21 characters, alphanumeric
-	"""
-	
-	return ''.join(random.choices(string.ascii_letters + string.digits, k = 21))

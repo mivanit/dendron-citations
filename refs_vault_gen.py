@@ -7,8 +7,10 @@ from typing import *
 import os
 import sys
 # import json
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass,asdict
+import unicodedata
+
 
 import yaml
 import chevron # implementation of mustache templating
@@ -21,7 +23,8 @@ OptionalListStr = Optional[List[str]]
 
 def strip_bibtex_fmt(s : str) -> str:
 	return (
-		s
+		unicodedata.normalize('NFKD', s)
+		.encode('ascii', 'ignore').decode('ascii')
 		.replace('{', '')
 		.replace('}', '')
 		.replace('\n', '  ')
@@ -32,9 +35,10 @@ def strip_bibtex_fmt(s : str) -> str:
 		# .replace('\\', '')
 	)
 
-def process_tag_name(s : str) -> str:
-	return (
-		s
+def process_tag_name(s : str, nodot : bool = True) -> str:
+	s_new : str = (
+		unicodedata.normalize('NFKD', s)
+		.encode('ascii', 'ignore').decode('ascii')
 		.replace(' - ', '-')
 		.replace(' ', '_')
 		.replace('\t', '__')
@@ -42,6 +46,62 @@ def process_tag_name(s : str) -> str:
 		.replace('\n', '')
 		.replace('/', '-')
 	)
+
+	if nodot:
+		s_new = s_new.replace('.', '-')
+	
+	return s_new
+
+def to_alpha(s : str) -> str:
+	"""convert a string to alphabetic only"""
+	return ''.join(filter(str.isalpha, s))
+
+GLOBAL_AUTHORS_DICT : Dict[str,List[str]] = defaultdict(list)
+
+
+BibLib_like_Name = NamedTuple('BibLib_like_Name', [
+	('first',str),
+	('last',str),
+])
+
+def name_to_tag(name : 'biblib.Name') -> str:
+	"""convert a bibtex name to a tag name
+	
+	default format: `<first_char_of_first_name>-<last_name>`
+	"""
+
+	# if the first name is empty, we should check for the special case of the last name containing the full name in order
+	if (name.first.strip() == '') and (name.last.strip().count(' ') > 0):
+		temp : List[str] = name.last.strip('}{ \t').split(' ')
+		if temp[0]:
+			return name_to_tag(BibLib_like_Name(first = temp[0], last = temp[-1]))
+
+	first : str = to_alpha(process_tag_name(name.first).strip().strip('_-,.}{')).lower()
+	last : str = to_alpha(process_tag_name(name.last).strip().strip('_-,.}{')).lower()
+
+	# make the first letters capital, checking for length
+	if first:
+		first = first[0].upper() + first[1:]
+	if last:
+		last = last[0].upper() + last[1:]
+
+	# return
+	output : str = ''
+
+	if first == '':
+		output = last
+
+	elif last == '':
+		output = first
+	else:
+		output = f'{first[0]}-{last}'
+
+	# we write to this global dict to later be able to list all the author aliases in the tag file
+	basic_str_name : str = f'{name.first} {name.last}'
+	if basic_str_name not in GLOBAL_AUTHORS_DICT[output]:
+		GLOBAL_AUTHORS_DICT[output].append(basic_str_name)
+
+	return 'author.' + output
 
 def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 	"""a very very fragile attempt at making the bibtex notes look nice
@@ -123,15 +183,14 @@ def safe_get_split(
 		return default_factory()
 
 
+
 DEFAULT_TEMPLATE : str = """
 
-# {{title}}
-
-{{#_bln_authors}}# Authors
-{{/_bln_authors}}
-{{#authors}}
- - {{elt}}
-{{/authors}}
+{{#_bln_author_tags}}# Authors
+{{/_bln_author_tags}}
+{{#author_tags}}
+ - [[{{str_name}} | tags.{{tag_name}}]]
+{{/author_tags}}
 
 {{#_bln_links}}# Links
 {{/_bln_links}}
@@ -162,6 +221,9 @@ DEFAULT_TEMPLATE : str = """
 {{/note}}
 """
 
+AuthorTagDictKeys = Literal['tag_name', 'str_name']
+AuthorTagDict = Dict[AuthorTagDictKeys,str]
+
 @dataclass(frozen = True)
 class CitationEntry:
 	"""a universal citation entry"""
@@ -169,6 +231,7 @@ class CitationEntry:
 	zotero_key : OptionalStr = None
 	title : OptionalStr = None
 	authors : OptionalListStr = None
+	author_tags : Optional[List[AuthorTagDict]] = None
 	typ : OptionalStr = None
 	date : OptionalStr = None
 	links : OptionalListStr = None
@@ -182,12 +245,19 @@ class CitationEntry:
 	@staticmethod
 	def from_bib(bib_key, bib_entry : biblib.bib.Entry) -> 'CitationEntry':
 		"""create a citation entry from a biblib entry"""
-		authors : List[str] = []
+		authors : List[str] = list()
+		author_tags : Optional[List[AuthorTagDict]] = list()
 		try:
 			authors = [
 				strip_bibtex_fmt(f'{nm.first} {nm.last}')
 				for nm in bib_entry.authors()
 			]
+
+			author_tags = [
+				{ 'tag_name' : name_to_tag(nm), 'str_name' : nm_str }
+				for nm,nm_str in zip(bib_entry.authors(), authors)
+			]
+
 		except biblib.bib.FieldError as e:
 			print('WARNING: ', e)
 
@@ -195,6 +265,7 @@ class CitationEntry:
 			bib_key = bib_key,
 			title = safe_get(bib_entry, 'title'),
 			authors = authors,
+			author_tags = author_tags,
 			typ = safe_get(bib_entry, 'typ'),
 			date = safe_get(bib_entry, 'date'),
 			links = safe_get_split(bib_entry, 'url', ';'),
@@ -228,8 +299,10 @@ class CitationEntry:
 		d_out : Dict = dict()
 		for k,v in d_basic.items():
 			if isinstance(v, (list, tuple)):
-				if all(isinstance(x, str) for x in v):
+				if all(isinstance(x, (str, float, int, bool)) for x in v):
 					d_out[k] = [{'elt' : x} for x in v]
+				else:
+					d_out[k] = v
 			else:
 				d_out[k] = v
 
@@ -257,6 +330,13 @@ class CitationEntry:
 
 		return note
 
+	def get_all_tags(self) -> List[str]:
+		"""get all tags"""
+		return [
+			*[ x['tag_name'] for x in self.author_tags],
+			*self.keywords,
+			*self.collections,
+		]
 
 BIBTEX_ENTRY_TYPES_BASE : List[str] = [
 	'article', 'book', 'booklet', 'conference', 'inbook', 'incollection', 'inproceedings', 'manual', 'masterthesis', 'misc', 'phdthesis', 'proceedings', 'techreport', 'unpublished', 'online', 'software',
@@ -302,12 +382,53 @@ def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 	return db_new
 
 
-def full_process(bib_filename : str, vault_prefix : str = '../../refs-vault/ref.'):
+def make_tag_note(tag : str, vault_loc : str) -> None:
+	"""check for the existance of a tag note in the vault, and make it if it doesnt exist"""
+	
+	tag_path : str = f'{vault_loc}tags.{tag}.md'
+	
+	if os.path.exists(tag_path):
+		return
+
+	note : PandocMarkdown = PandocMarkdown.get_dendron_template(
+		fm = dict(),
+		do_id = True,
+	)
+	note.yaml_data['title'] = tag
+
+	note.content = f'# {tag}\n\n'
+
+	# if its an author tag, figure out all the names for the author:
+	if tag.startswith('author.'):
+		authortag : str = tag.removeprefix('author.')
+		note.content += '\n'.join([
+			'## Author names:',
+			'',
+			'\n'.join([
+				f'- {x}'
+				for x in GLOBAL_AUTHORS_DICT[authortag]
+			]),
+		])
+
+	with open(tag_path, 'w', encoding = 'utf-8') as f:
+		f.write(note.dumps())
+
+def full_process(
+		bib_filename : str, 
+		vault_loc : str = '../../refs-vault/',
+		note_prefix : str = 'refs.',
+		make_tag_notes : bool = True,
+	):
 	"""given a bibtex file, output a vault of dendron notes"""
 	db : OrderedDict[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
 
+	all_tags : List[str] = list()
+	vault_prefix : str = vault_loc + note_prefix
+
 	for key,val in db.items():
 		entry : CitationEntry = CitationEntry.from_bib(key, val)
+		all_tags.extend(entry.get_all_tags())
+
 		note : PandocMarkdown = entry.to_md()
 		fname : str = f'{vault_prefix}{key}.md'
 
@@ -328,6 +449,11 @@ def full_process(bib_filename : str, vault_prefix : str = '../../refs-vault/ref.
 
 		with open(fname, 'w', encoding = 'utf-8') as f:
 			f.write(note.dumps())
+	
+	if make_tag_notes:
+		for tag in all_tags:
+			make_tag_note(tag, vault_loc)
+
 
 if __name__ == '__main__':
 	import fire
