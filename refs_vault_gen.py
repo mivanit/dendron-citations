@@ -258,7 +258,14 @@ class CitationEntry:
 		return note
 
 
+BIBTEX_ENTRY_TYPES_BASE : List[str] = [
+	'article', 'book', 'booklet', 'conference', 'inbook', 'incollection', 'inproceedings', 'manual', 'masterthesis', 'misc', 'phdthesis', 'proceedings', 'techreport', 'unpublished', 'online', 'software',
+]
 
+BIBTEX_ENTRY_TYPES_LINESTART : List[str] = [
+	'@' + typ + '{'
+	for typ in BIBTEX_ENTRY_TYPES_BASE
+]
 
 def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 	"""load a bibtex file"""
@@ -274,7 +281,25 @@ def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 			print('WARNING: ', e)
 			raise
 
-	return db
+	# get the correct keys for the case
+	all_keys : List[str] = list()
+	with open(filename, 'r', encoding = 'utf-8') as f:
+		for line in f:
+			for typ  in BIBTEX_ENTRY_TYPES_LINESTART:
+				if line.startswith(typ):
+					all_keys.append(line.removeprefix(typ).split(',')[0])
+
+	# fix the keys in `db` with the matching correct-case keys in `all_keys`
+	assert len(all_keys) == len(db), f'manually read keys count doesnt match number of keys in database: {len(all_keys) = }\t{len(db) = }'
+
+	db_new : OrderedDict[str, biblib.bib.Entry] = OrderedDict()
+	for key in all_keys:
+		if key.lower() in db:
+			db_new[key] = db[key.lower()]
+		else:
+			raise KeyError(f'key {key.lower()} not found in database, expected from `all_keys`')
+
+	return db_new
 
 
 def full_process(bib_filename : str, vault_prefix : str = '../../refs-vault/ref.'):
