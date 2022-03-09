@@ -186,6 +186,7 @@ def safe_get_split(
 
 DEFAULT_TEMPLATE : str = """
 
+
 {{#_bln_author_tags}}# Authors
 {{/_bln_author_tags}}
 {{#author_tags}}

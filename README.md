@@ -16,7 +16,7 @@ this allows the user to reference the dendron notes instead of raw bibtex item (
 ## Usage: 
 
 ```bash
-python refs_vault_gen.py --bib_filename <bibtex_file> --vault_prefix <output_dir>
+python refs_vault_gen.py --bib_filename <bibtex_file> --vault_loc <output_dir>
 ```
 or simply
 ```bash
@@ -37,7 +37,18 @@ py refs_vault_gen.py examples/refs.bib examples/vault/refs.
 ```
 
 
+## tag notes
 
+Not only can we use dendron backlinks to view where we have cited a certain paper, but we can additionally use the backlinks to see all papers by a given author, or all papers with a given keyword!
+
+The argument `--make_tag_notes`, `True` by default, will enable the generation of notes for each tag, as long as the tag does not yet exists. Keywords will be processed into tags by removing spaces and other extra characters. Author tags will be of the format `<first_char_of_first_name>-<last_name>`, with all characters converted to ascii. The actual notes for author tags will contain the full author names.
+
+## templates
+
+For now, you need to manually modify the template string `DEFAULT_TEMPLATE` in the file `refs_vault_gen.py` to suit your needs. The template is in [Mustache](https://mustache.github.io) format, with some extensions:
+
+- Add the prefix `_bln_` to the name of any iterable variable to get access to a boolean value that is true if the variable is not empty
+- Lists of non-dict items are turned into lists of dicts, where each dict has a single key `elt` with the value of the item
 
 # Roadmap:
 
@@ -45,11 +56,11 @@ py refs_vault_gen.py examples/refs.bib examples/vault/refs.
 
 - [x] given a bibtex file, generate a vault of dendron notes bibtex keys as filenames
 - [x] add tags and other things from bibtex to metadata
+- [x] optional generation of tag files
 - [ ] "beneath" each note for the bibtex, add another note for the citation itself.
 	- note that this will all break if the bibtex keys change!
 - [ ] automatically convert [PandocCiter](https://github.com/notZaki/PandocCiter) style 
 	- this will allow for better searching for papers
-- [ ] optional generation of tag files?
 - [ ] make citations work properly when compiling with [Pandoc](https://pandoc.org/)
 	- probably best to do this as part of [dendron-pandoc](https://github.com/mivanit/dendron-pandoc)
 - [ ] turn this into a real vscode plugin
