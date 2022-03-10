@@ -208,7 +208,7 @@ DEFAULT_TEMPLATE : str = """
 {{#_bln_files}}# Files
 {{/_bln_files}}
 {{#files}}
- - [`{{elt}}`]({{elt}})
+ - [`{{elt}}`](vscode://file/{{elt}})
 {{/files}}
 
 {{#abstract}}
@@ -270,7 +270,10 @@ class CitationEntry:
 			typ = safe_get(bib_entry, 'typ'),
 			date = safe_get(bib_entry, 'date'),
 			links = safe_get_split(bib_entry, 'url', ';'),
-			files = safe_get_split(bib_entry, 'files', ';'),
+			files = [
+				x.replace(r'\:', ':').replace('\\\\', '/')
+				for x in safe_get_split(bib_entry, 'file', ';')
+			],
 			keywords = [
 				process_tag_name(x)	
 				for x in safe_get_split(bib_entry, 'keywords', ',')
@@ -440,13 +443,18 @@ def full_process(
 
 			if 'created' in old_note.yaml_data:
 				note.yaml_data['created'] = old_note.yaml_data['created']
+
+			if 'updated' in old_note.yaml_data:
+				note.yaml_data['updated'] = old_note.yaml_data['updated']
 			
 			if 'id' in old_note.yaml_data:
 				note.yaml_data['id'] = old_note.yaml_data['id']
 			else:
 				note.yaml_data['id'] = gen_dendron_ID()
-
-		note.update_time()
+		else:
+			# we don't update the time unless the note is new
+			note.update_time()
+			note.yaml_data['id'] = gen_dendron_ID()
 
 		with open(fname, 'w', encoding = 'utf-8') as f:
 			f.write(note.dumps())
