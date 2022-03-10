@@ -419,6 +419,7 @@ def full_process(
 		vault_loc : str = '../../refs-vault/',
 		note_prefix : str = 'refs.',
 		make_tag_notes : bool = True,
+		verbose : bool = False,
 	):
 	"""given a bibtex file, output a vault of dendron notes"""
 	db : OrderedDict[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
@@ -427,6 +428,9 @@ def full_process(
 	vault_prefix : str = vault_loc + note_prefix
 
 	for key,val in db.items():
+		if verbose:
+			print(f'processing key:\t{key}')
+
 		entry : CitationEntry = CitationEntry.from_bib(key, val)
 		all_tags.extend(entry.get_all_tags())
 
@@ -453,6 +457,8 @@ def full_process(
 	
 	if make_tag_notes:
 		for tag in all_tags:
+			if verbose:
+				print(f'processing tag:\t{tag}')
 			make_tag_note(tag, vault_loc)
 
 
