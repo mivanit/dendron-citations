@@ -11,7 +11,6 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass,asdict
 import unicodedata
 
-
 import yaml
 import chevron # implementation of mustache templating
 import biblib.bib
@@ -367,8 +366,8 @@ def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 	with open(filename, 'r', encoding = 'utf-8') as f:
 		for line in f:
 			for typ  in BIBTEX_ENTRY_TYPES_LINESTART:
-				if line.startswith(typ):
-					all_keys.append(line.removeprefix(typ).split(',')[0])
+				if line.lower().startswith(typ):
+					all_keys.append(line.split('{')[1].split(',')[0])
 
 	# fix the keys in `db` with the matching correct-case keys in `all_keys`
 	assert len(all_keys) == len(db), f'manually read keys count doesnt match number of keys in database: {len(all_keys) = }\t{len(db) = }'
