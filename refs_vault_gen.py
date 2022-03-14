@@ -18,6 +18,12 @@ import biblib.bib
 
 from md_util import PandocMarkdown,gen_dendron_ID
 
+
+GLOBAL_CONFIG : Dict[str,Any] = {
+	'kebab-case-tag-names' : False,
+}
+
+
 OptionalStr = Optional[str]
 OptionalListStr = Optional[List[str]]
 
@@ -46,6 +52,9 @@ def process_tag_name(s : str, nodot : bool = True) -> str:
 		.replace('\n', '')
 		.replace('/', '-')
 	)
+
+	if GLOBAL_CONFIG['kebab-case-tag-names']:
+		s_new = s_new.lower()
 
 	if nodot:
 		s_new = s_new.replace('.', '-')
@@ -98,6 +107,7 @@ def name_to_tag(name : 'biblib.Name') -> str:
 
 	# we write to this global dict to later be able to list all the author aliases in the tag file
 	basic_str_name : str = f'{name.first} {name.last}'
+	global GLOBAL_AUTHORS_DICT
 	if basic_str_name not in GLOBAL_AUTHORS_DICT[output]:
 		GLOBAL_AUTHORS_DICT[output].append(basic_str_name)
 
@@ -388,7 +398,8 @@ def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 
 def make_tag_note(tag : str, vault_loc : str) -> None:
 	"""check for the existance of a tag note in the vault, and make it if it doesnt exist"""
-	
+	global GLOBAL_AUTHORS_DICT
+
 	tag_path : str = f'{vault_loc}tags.{tag}.md'
 	
 	if os.path.exists(tag_path):
@@ -422,8 +433,14 @@ def full_process(
 		vault_loc : str = '../../refs-vault/',
 		note_prefix : str = 'refs.',
 		make_tag_notes : bool = True,
+		**kwargs,
 	):
 	"""given a bibtex file, output a vault of dendron notes"""
+
+	# load any extra config options
+	global GLOBAL_CONFIG
+	GLOBAL_CONFIG = {**GLOBAL_CONFIG, **kwargs}
+
 	db : OrderedDict[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
 
 	all_tags : List[str] = list()
