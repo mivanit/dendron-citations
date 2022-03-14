@@ -13,13 +13,16 @@ from dataclasses import dataclass,asdict
 import unicodedata
 
 # package imports
-import yaml
-import chevron # implementation of mustache templating
-import biblib.bib
+import yaml # type: ignore
+
+# implementation of mustache templating
+import chevron # type: ignore 
+
+import biblib.bib # type: ignore
 
 # optional pypandoc stuff
 try:
-	import pypandoc
+	import pypandoc # type: ignore
 	try:
 		pypandoc.get_pandoc_version()
 		PYPANDOC_AVAILABLE = True
@@ -406,10 +409,18 @@ class CitationEntry:
 
 	def get_all_tags(self) -> List[str]:
 		"""get all tags"""
+
+		auth_tags_processed : List[str] = list()
+		if self.author_tags:
+			auth_tags_processed = [
+				x['tag_name']
+				for x in self.author_tags
+			]
+		
 		return [
-			*[ x['tag_name'] for x in self.author_tags],
-			*self.keywords,
-			*self.collections,
+			*auth_tags_processed,
+			*(self.keywords if self.keywords else list()),
+			*(self.collections if self.collections else list()),
 		]
 
 BIBTEX_ENTRY_TYPES_BASE : List[str] = [
@@ -475,7 +486,10 @@ def make_tag_note(tag : str, vault_loc : str) -> None:
 
 	# if its an author tag, figure out all the names for the author:
 	if tag.startswith('author.'):
-		authortag : str = tag.removeprefix('author.')
+		# removeprefix only works in python 3.9+
+		# authortag : str = tag.removeprefix('author.')
+		authortag : str = tag[len('author.'):]
+
 		note.content += '\n'.join([
 			'## Author names:',
 			'',
@@ -548,7 +562,7 @@ def full_process(
 
 
 if __name__ == '__main__':
-	import fire
+	import fire # type: ignore
 	fire.Fire(full_process)
 
 

@@ -8,7 +8,7 @@ import random
 # make sure the seed is random, for ID generation
 random.seed(time.time())
 
-import yaml
+import yaml # type: ignore
 
 def keylist_access_nested_dict(
 		d : Dict[str,Any], 
@@ -168,11 +168,11 @@ class PandocMarkdown(object):
 			raise ValueError(f'missing sections in file {filename}, check delims')
 
 		# get the first section and parse as yaml
-		self.yaml_data : Dict[str, Any] = self.loader(sections[1])
+		self.yaml_data = self.loader(sections[1])
 		# get the content
-		self.content : str = self.delim.join(sections[2:])
+		self.content = self.delim.join(sections[2:])
 
-		self.initialized : bool = True
+		self.initialized = True
 
 	def update_time(self) -> None:
 		"""updates the updated time in the frontmatter"""
