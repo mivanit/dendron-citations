@@ -16,6 +16,19 @@ import yaml
 import chevron # implementation of mustache templating
 import biblib.bib
 
+try:
+	import pypandoc
+	try:
+		pypandoc.get_pandoc_version()
+		PYPANDOC_AVAILABLE = True
+	except RuntimeError as e:
+		PYPANDOC_AVAILABLE = False
+		print(f"WARNING: pypandoc couldn't find pandoc: {e}")
+
+except ImportError:
+	PYPANDOC_AVAILABLE = False
+	print('WARNING: pypandoc not available. converting notes from bibtex might not work')
+
 from md_util import PandocMarkdown,gen_dendron_ID
 
 OptionalStr = Optional[str]
@@ -103,10 +116,19 @@ def name_to_tag(name : 'biblib.Name') -> str:
 
 	return 'author.' + output
 
+def _handle_whitespace(s : str) -> str:
+	output : List[str] = []
+	for line in s.split('\n'):
+		if line.strip():
+			output.append(line)
+
+	return '\n'.join(output)
+
+
 def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 	"""a very very fragile attempt at making the bibtex notes look nice
 
-	TODO: try to detect whether the note is html or latex, and then use pandoc to conver it
+	try to detect whether the note is html, latex, or plain markdown, and then use pandoc to convert it
 	
 	TODO: eventually this should just get the notes directly from zotero
 	"""
@@ -114,6 +136,29 @@ def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 	if s is None:
 		return None
 
+	# if we have pypandoc, try to process the notes as html or latex
+	if PYPANDOC_AVAILABLE:
+		if (s.count('<') / len(s) > 0.05) and (s.count('>') / len(s) > 0.05):
+			# probably html
+			try:
+				return _handle_whitespace(
+					pypandoc.convert_text(s, 'markdown', format = 'html')
+					.replace('# ', '## ')
+				)
+			except RuntimeError as e:
+				print(f"WARNING: couldn't convert note as HTML: {e}")
+
+		elif s.count('\\') / len(s) > 0.01:
+			# probably latex
+			try:
+				return _handle_whitespace(
+					pypandoc.convert_text(s, 'markdown', format = 'latex')
+					.replace('# ', '## ')
+				)
+			except RuntimeError as e:
+				print(f"WARNING: couldn't convert note as LaTeX: {e}")
+
+	# otherwise, assume plaintext/markdown and do some very fragile processing
 	s = (
 		s
 		.replace('\\par', '\n\n') # replace \par with newlines
@@ -127,6 +172,7 @@ def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 		.replace('\n ', '\n') # get rid of extra spaces at beginning of lines. not sure why these show up
 	)
 
+	# sometimes, not exports replace " " with "~". not a clue why.
 	if s.count('~') / len(s) > 0.1:
 		s = s.replace('~', ' ')
 
@@ -279,7 +325,8 @@ class CitationEntry:
 			abstract = safe_get_any(bib_entry, ['abstract', 'abstractnote', 'abstractNote', 'summary']),
 			note = process_note_HACKY(safe_get_any(
 				bib_entry, 
-				['note', 'notes', 'annote', 'annotations', 'comments']
+				['note', 'notes', 'annote', 'annotation', 'annotations', 'comments'],
+				process = lambda x : x,
 			)),
 			bib_meta = dict(bib_entry),
 		)
