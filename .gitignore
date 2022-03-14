@@ -2,7 +2,7 @@ examples/**
 !examples/refs.bib
 examples/vault/**
 !examples/vault/*.md
-
+vault_storage/
 # default python ignores
 
 # Byte-compiled / optimized / DLL files

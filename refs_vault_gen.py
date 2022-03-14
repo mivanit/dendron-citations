@@ -83,6 +83,7 @@ def process_tag_name(s : str, nodot : bool = True) -> str:
 	)
 
 	if GLOBAL_CONFIG['kebab-case-tag-names']:
+		s_new = s_new.replace('_','-')
 		s_new = s_new.lower()
 
 	if nodot:
