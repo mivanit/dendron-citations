@@ -11,7 +11,6 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass,asdict
 import unicodedata
 
-
 import yaml
 import chevron # implementation of mustache templating
 import biblib.bib
@@ -380,8 +379,8 @@ def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 	with open(filename, 'r', encoding = 'utf-8') as f:
 		for line in f:
 			for typ  in BIBTEX_ENTRY_TYPES_LINESTART:
-				if line.startswith(typ):
-					all_keys.append(line.removeprefix(typ).split(',')[0])
+				if line.lower().startswith(typ):
+					all_keys.append(line.split('{')[1].split(',')[0])
 
 	# fix the keys in `db` with the matching correct-case keys in `all_keys`
 	assert len(all_keys) == len(db), f'manually read keys count doesnt match number of keys in database: {len(all_keys) = }\t{len(db) = }'
@@ -433,6 +432,7 @@ def full_process(
 		vault_loc : str = '../../refs-vault/',
 		note_prefix : str = 'refs.',
 		make_tag_notes : bool = True,
+		verbose : bool = False,
 		**kwargs,
 	):
 	"""given a bibtex file, output a vault of dendron notes"""
@@ -447,6 +447,9 @@ def full_process(
 	vault_prefix : str = vault_loc + note_prefix
 
 	for key,val in db.items():
+		if verbose:
+			print(f'processing key:\t{key}')
+
 		entry : CitationEntry = CitationEntry.from_bib(key, val)
 		all_tags.extend(entry.get_all_tags())
 
@@ -478,6 +481,8 @@ def full_process(
 	
 	if make_tag_notes:
 		for tag in all_tags:
+			if verbose:
+				print(f'processing tag:\t{tag}')
 			make_tag_note(tag, vault_loc)
 
 
