@@ -49,7 +49,7 @@ else:
 
 
 GLOBAL_CONFIG : Dict[str,Any] = {
-	'kebab-case-tag-names' : False,
+	'kebab_case_tag_names' : False,
 }
 
 
@@ -82,13 +82,15 @@ def process_tag_name(s : str, nodot : bool = True) -> str:
 		.replace('/', '-')
 	)
 
-	if GLOBAL_CONFIG['kebab-case-tag-names']:
-		
+	if GLOBAL_CONFIG['kebab_case_tag_names']:
+		s_new = s_new.replace('_', '-')
 		s_new = s_new.lower()
+		
 
 	if nodot:
 		s_new = s_new.replace('.', '-')
 	
+	#print(s_new.replace('_','XYZ'))
 	return s_new
 
 def to_alpha(s : str) -> str:
@@ -516,6 +518,7 @@ def full_process(
 	# load any extra config options
 	global GLOBAL_CONFIG
 	GLOBAL_CONFIG = {**GLOBAL_CONFIG, **kwargs}
+	
 
 	db : OrderedDictType[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
 
