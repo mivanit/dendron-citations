@@ -3,6 +3,7 @@
 
 """
 
+# standard library imports
 from typing import *
 import os
 import sys
@@ -11,10 +12,12 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass,asdict
 import unicodedata
 
+# package imports
 import yaml
 import chevron # implementation of mustache templating
 import biblib.bib
 
+# optional pypandoc stuff
 try:
 	import pypandoc
 	try:
@@ -28,7 +31,18 @@ except ImportError:
 	PYPANDOC_AVAILABLE = False
 	print('WARNING: pypandoc not available. converting notes from bibtex might not work')
 
+# local imports
 from md_util import PandocMarkdown,gen_dendron_ID
+
+
+# handle `OrderedDict` typing not working below 3.10
+print(sys.version_info)
+if (sys.version_info[1] < 10):
+	# we declare the ordered dict as just a dict here
+	# this will break MyPy, but it's fine
+	OrderedDictType = Dict
+else:
+	OrderedDictType = OrderedDict
 
 
 GLOBAL_CONFIG : Dict[str,Any] = {
@@ -296,7 +310,7 @@ class CitationEntry:
 	collections : OptionalListStr = None
 	abstract : OptionalStr = None
 	note : OptionalStr = None
-	bib_meta : Optional[OrderedDict[str, str]] = None
+	bib_meta : Optional[OrderedDictType[str, str]] = None
 
 	@staticmethod
 	def from_bib(bib_key, bib_entry : biblib.bib.Entry) -> 'CitationEntry':
@@ -407,11 +421,11 @@ BIBTEX_ENTRY_TYPES_LINESTART : List[str] = [
 	for typ in BIBTEX_ENTRY_TYPES_BASE
 ]
 
-def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
+def load_bibtex_raw(filename : str) -> OrderedDictType[str, biblib.bib.Entry]:
 	"""load a bibtex file"""
 	with open(filename, 'r', encoding = 'utf-8') as f:
 		try:
-			db : OrderedDict[str, biblib.bib.Entry] = (
+			db : OrderedDictType[str, biblib.bib.Entry] = (
 				biblib.bib
 				.Parser()
 				.parse(f, log_fp=sys.stderr)
@@ -432,7 +446,7 @@ def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 	# fix the keys in `db` with the matching correct-case keys in `all_keys`
 	assert len(all_keys) == len(db), f'manually read keys count doesnt match number of keys in database: {len(all_keys) = }\t{len(db) = }'
 
-	db_new : OrderedDict[str, biblib.bib.Entry] = OrderedDict()
+	db_new : OrderedDictType[str, biblib.bib.Entry] = OrderedDict()
 	for key in all_keys:
 		if key.lower() in db:
 			db_new[key] = db[key.lower()]
@@ -488,7 +502,7 @@ def full_process(
 	global GLOBAL_CONFIG
 	GLOBAL_CONFIG = {**GLOBAL_CONFIG, **kwargs}
 
-	db : OrderedDict[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
+	db : OrderedDictType[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
 
 	all_tags : List[str] = list()
 	vault_prefix : str = vault_loc + note_prefix
