@@ -50,6 +50,29 @@ For now, you need to manually modify the template string `DEFAULT_TEMPLATE` in t
 - Add the prefix `_bln_` to the name of any iterable variable to get access to a boolean value that is true if the variable is not empty
 - Lists of non-dict items are turned into lists of dicts, where each dict has a single key `elt` with the value of the item
 
+
+# Installation:
+
+not yet on pypi. for now, you just need the files [`md_util.py`](md_util.py) and [`refs_vault_gen.py`](refs_vault_gen.py) somewhere, along with the dependencies listed below. This is a WORK IN PROGRESS, so I haven't put much work into streamlining installation.
+
+you can install the requirements with
+```bash
+pip install -r requirements.txt
+```
+
+## Dependencies:
+
+- https://github.com/t-wissmann/biblib
+	- not on pypi, installed from git repo
+	- note: forked from https://github.com/aclements/biblib, which no longer works
+- [`pyyaml`](https://github.com/yaml/pyyaml/)
+- [`chevron`](https://github.com/noahmorrison/chevron)
+	- python implementation of the [mustache](https://mustache.github.io) templating language
+- [`pypandoc`](https://github.com/NicklasTegner/pypandoc) (optional)
+	- for converting notes to markdown
+
+
+
 # Roadmap:
 
 ## bibtex integration
@@ -90,16 +113,3 @@ do everything as for bibtex integration, but also:
 	"description": "dendron reference citation"
 },
 ```
-
-# Installation:
-
-not yet on pypi. for now, you just need the files [`md_util.py`](md_util.py) and [`refs_vault_gen.py`](refs_vault_gen.py) somewhere, along with the dependencies listed below. This is a WORK IN PROGRESS, so I haven't put much work into streamlining installation.
-
-## Dependencies:
-
-- https://github.com/t-wissmann/biblib
-	- needs to be installed manually, not on pypi
-	- note: forked from https://github.com/aclements/biblib, which no longer works
-- [`chevron`](https://github.com/noahmorrison/chevron)
-	- python implementation of the [mustache](https://mustache.github.io) templating language
-	- install with `pip install chevron`

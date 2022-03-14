@@ -1,0 +1,9 @@
+# mustache template parser
+chevron
+# required for metadata stuff
+pyyaml
+# updated version of biblib, not on pypi
+-e git+https://github.com/t-wissmann/biblib.git#egg=biblib
+
+# for converstion of notes, optional
+pypandoc 
