@@ -17,6 +17,12 @@ import biblib.bib
 
 from md_util import PandocMarkdown,gen_dendron_ID
 
+
+GLOBAL_CONFIG : Dict[str,Any] = {
+	'kebab-case-tag-names' : False,
+}
+
+
 OptionalStr = Optional[str]
 OptionalListStr = Optional[List[str]]
 
@@ -45,6 +51,9 @@ def process_tag_name(s : str, nodot : bool = True) -> str:
 		.replace('\n', '')
 		.replace('/', '-')
 	)
+
+	if GLOBAL_CONFIG['kebab-case-tag-names']:
+		s_new = s_new.lower()
 
 	if nodot:
 		s_new = s_new.replace('.', '-')
@@ -97,6 +106,7 @@ def name_to_tag(name : 'biblib.Name') -> str:
 
 	# we write to this global dict to later be able to list all the author aliases in the tag file
 	basic_str_name : str = f'{name.first} {name.last}'
+	global GLOBAL_AUTHORS_DICT
 	if basic_str_name not in GLOBAL_AUTHORS_DICT[output]:
 		GLOBAL_AUTHORS_DICT[output].append(basic_str_name)
 
@@ -207,7 +217,7 @@ DEFAULT_TEMPLATE : str = """
 {{#_bln_files}}# Files
 {{/_bln_files}}
 {{#files}}
- - [`{{elt}}`]({{elt}})
+ - [`{{elt}}`](vscode://file/{{elt}})
 {{/files}}
 
 {{#abstract}}
@@ -269,7 +279,10 @@ class CitationEntry:
 			typ = safe_get(bib_entry, 'typ'),
 			date = safe_get(bib_entry, 'date'),
 			links = safe_get_split(bib_entry, 'url', ';'),
-			files = safe_get_split(bib_entry, 'files', ';'),
+			files = [
+				x.replace(r'\:', ':').replace('\\\\', '/')
+				for x in safe_get_split(bib_entry, 'file', ';')
+			],
 			keywords = [
 				process_tag_name(x)	
 				for x in safe_get_split(bib_entry, 'keywords', ',')
@@ -384,7 +397,8 @@ def load_bibtex_raw(filename : str) -> OrderedDict[str, biblib.bib.Entry]:
 
 def make_tag_note(tag : str, vault_loc : str) -> None:
 	"""check for the existance of a tag note in the vault, and make it if it doesnt exist"""
-	
+	global GLOBAL_AUTHORS_DICT
+
 	tag_path : str = f'{vault_loc}tags.{tag}.md'
 	
 	if os.path.exists(tag_path):
@@ -419,8 +433,14 @@ def full_process(
 		note_prefix : str = 'refs.',
 		make_tag_notes : bool = True,
 		verbose : bool = False,
+		**kwargs,
 	):
 	"""given a bibtex file, output a vault of dendron notes"""
+
+	# load any extra config options
+	global GLOBAL_CONFIG
+	GLOBAL_CONFIG = {**GLOBAL_CONFIG, **kwargs}
+
 	db : OrderedDict[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
 
 	all_tags : List[str] = list()
@@ -443,13 +463,18 @@ def full_process(
 
 			if 'created' in old_note.yaml_data:
 				note.yaml_data['created'] = old_note.yaml_data['created']
+
+			if 'updated' in old_note.yaml_data:
+				note.yaml_data['updated'] = old_note.yaml_data['updated']
 			
 			if 'id' in old_note.yaml_data:
 				note.yaml_data['id'] = old_note.yaml_data['id']
 			else:
 				note.yaml_data['id'] = gen_dendron_ID()
-
-		note.update_time()
+		else:
+			# we don't update the time unless the note is new
+			note.update_time()
+			note.yaml_data['id'] = gen_dendron_ID()
 
 		with open(fname, 'w', encoding = 'utf-8') as f:
 			f.write(note.dumps())
