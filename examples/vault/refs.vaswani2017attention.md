@@ -1,38 +1,29 @@
 ---
 title: Attention is all you need
-desc: ''
+id: kON8PGY2lS16uRDT5E5OO
 created: 1646170271808
-updated: 1646172460149
-bibliography: [../refs_miv.bib, ../refs_knc.bib]
-__defaults__:
-  filters: [$FILTERS$/get_markdown_links.py]
-traitIds: [journalNote]
+updated: 1646939664582
+traitIds: referenceNote
 tags: [transformers, ML, CS]
 attached_files: []
-authors: [Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones,
-  Aidan N Gomez, \Lukasz Kaiser, Illia Polosukhin]
+authors: [Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, \Lukasz Kaiser, Illia Polosukhin]
 bibtex_key: vaswani2017attention
-__bibtex__: {title: Attention is all you need, author: 'Vaswani, Ashish and Shazeer,
-    Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N
-    and Kaiser, {\L}ukasz and Polosukhin, Illia', journal: Advances in neural information
-    processing systems, volume: '30', keywords: 'transformers,ML,CS', year: '2017'}
 ---
-# Attention is all you need
-
 # Authors
- - Ashish Vaswani
- - Noam Shazeer
- - Niki Parmar
- - Jakob Uszkoreit
- - Llion Jones
- - Aidan N Gomez
- - \Lukasz Kaiser
- - Illia Polosukhin
+ - [[Ashish Vaswani | tags.author.A-Vaswani]]
+ - [[Noam Shazeer | tags.author.N-Shazeer]]
+ - [[Niki Parmar | tags.author.N-Parmar]]
+ - [[Jakob Uszkoreit | tags.author.J-Uszkoreit]]
+ - [[Llion Jones | tags.author.L-Jones]]
+ - [[Aidan N Gomez | tags.author.A-Gomez]]
+ - [[\Lukasz Kaiser | tags.author.L-Kaiser]]
+ - [[Illia Polosukhin | tags.author.I-Polosukhin]]
 
 
 # Keywords
  - #transformers
  - #ML
  - #CS
+
 
 

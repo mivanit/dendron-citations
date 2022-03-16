@@ -1,7 +1,9 @@
 examples/**
-!examples/refs.bib
+!examples/*.bib
 examples/vault/**
 !examples/vault/*.md
+
+.vscode/**
 
 # default python ignores
 
