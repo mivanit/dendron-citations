@@ -7,7 +7,8 @@
 from typing import *
 import os
 import sys
-# import json
+import json
+from functools import cached_property
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass,asdict
 import unicodedata
@@ -48,13 +49,93 @@ else:
 	OrderedDictType = OrderedDict
 
 
-GLOBAL_CONFIG : Dict[str,Any] = {
-	'kebab_case_tag_names' : False,
-}
-
-
 OptionalStr = Optional[str]
 OptionalListStr = Optional[List[str]]
+
+
+DEFAULT_TEMPLATE : str = """
+
+
+{{#_bln_author_tags}}# Authors
+{{/_bln_author_tags}}
+{{#author_tags}}
+ - [[{{str_name}} | tags.{{tag_name}}]]
+{{/author_tags}}
+
+{{#_bln_links}}# Links
+{{/_bln_links}}
+{{#links}}
+ - [`{{elt}}`]({{elt}})
+{{/links}}
+
+{{#_bln_keywords}}# Keywords
+{{/_bln_keywords}}
+{{#keywords}}
+ - #{{elt}}
+{{/keywords}}
+
+{{#_bln_files}}# Files
+{{/_bln_files}}
+{{#files}}
+ - [`{{elt}}`](vscode://file/{{elt}})
+{{/files}}
+
+{{#abstract}}
+# Abstract  
+{{&abstract}}
+{{/abstract}}
+
+{{#note}}
+# Notes
+{{&note}}
+{{/note}}
+"""
+
+def _get_template(self : 'Config') -> str:
+	if self.template is not None:
+		if os.path.isfile(self.template_path):
+			try:
+				with open(self.template_path, 'r') as f:
+					return f.read()
+			except Exception as e:
+				print(f"WARNING: using 'DEFAULT_TEMPLATE' -- couldn't read template file {self.template_path}:\t{e}")
+				return DEFAULT_TEMPLATE
+		else:
+			print(f"WARNING: using 'DEFAULT_TEMPLATE' -- template file {self.template_path} not found")
+			return DEFAULT_TEMPLATE
+	else:
+		return DEFAULT_TEMPLATE
+
+@dataclass(frozen=True)
+class Config:
+	bib_filename : str = 'refs.bib'
+	vault_loc : str = 'vault/'
+	note_prefix : str = 'refs.'
+	make_tag_notes : bool = True
+	verbose : bool = False
+	kebab_case_tag_names : bool = False
+	template_path : Optional[str] = None
+	
+	template : str = cached_property(_get_template)
+
+	@staticmethod
+	def merge(configs : List['Config']) -> 'Config':
+		"""merges a list of configs into a single config. later entries override earlier ones
+
+		Args:
+			configs (List[Config]): list of configs to merge
+
+		Returns:
+			Config: merged config
+		"""
+
+		config_dicts : List[Dict] = [asdict(c) for c in configs]
+		merged_config : Dict = {}
+		
+		for config_dict in config_dicts:
+			merged_config.update(config_dict)
+
+		return Config(**merged_config)
 
 def strip_bibtex_fmt(s : str) -> str:
 	return (
@@ -70,7 +151,7 @@ def strip_bibtex_fmt(s : str) -> str:
 		# .replace('\\', '')
 	)
 
-def process_tag_name(s : str, nodot : bool = True) -> str:
+def process_tag_name(s : str, nodot : bool = True, kebab_case_tag_names : bool = False) -> str:
 	s_new : str = (
 		unicodedata.normalize('NFKD', s)
 		.encode('ascii', 'ignore').decode('ascii')
@@ -82,7 +163,7 @@ def process_tag_name(s : str, nodot : bool = True) -> str:
 		.replace('/', '-')
 	)
 
-	if GLOBAL_CONFIG['kebab_case_tag_names']:
+	if kebab_case_tag_names:
 		s_new = s_new.replace('_', '-')
 		s_new = s_new.lower()
 
@@ -103,7 +184,15 @@ BibLib_like_Name = NamedTuple('BibLib_like_Name', [
 	('last',str),
 ])
 
-def name_to_tag(name : 'biblib.Name') -> str:
+
+def _name_to_tag_helper(name : str, kebab_case_tag_names : bool) -> str:
+	return to_alpha(
+		process_tag_name(name.first, kebab_case_tag_names = kebab_case_tag_names)
+		.strip()
+		.strip('_-,.}{')
+	).lower()
+
+def name_to_tag(name : 'biblib.Name', cfg : Config) -> str:
 	"""convert a bibtex name to a tag name
 	
 	default format: `<first_char_of_first_name>-<last_name>`
@@ -113,10 +202,10 @@ def name_to_tag(name : 'biblib.Name') -> str:
 	if (name.first.strip() == '') and (name.last.strip().count(' ') > 0):
 		temp : List[str] = name.last.strip('}{ \t').split(' ')
 		if temp[0]:
-			return name_to_tag(BibLib_like_Name(first = temp[0], last = temp[-1]))
+			return name_to_tag(BibLib_like_Name(first = temp[0], last = temp[-1]), cfg)
 
-	first : str = to_alpha(process_tag_name(name.first).strip().strip('_-,.}{')).lower()
-	last : str = to_alpha(process_tag_name(name.last).strip().strip('_-,.}{')).lower()
+	first : str = _name_to_tag_helper(name.first, kebab_case_tag_names = cfg.kebab_case_tag_names)
+	last : str = _name_to_tag_helper(name.last, kebab_case_tag_names = cfg.kebab_case_tag_names)
 
 	# make the first letters capital, checking for length
 	if first:
@@ -257,44 +346,6 @@ def safe_get_split(
 
 
 
-DEFAULT_TEMPLATE : str = """
-
-
-{{#_bln_author_tags}}# Authors
-{{/_bln_author_tags}}
-{{#author_tags}}
- - [[{{str_name}} | tags.{{tag_name}}]]
-{{/author_tags}}
-
-{{#_bln_links}}# Links
-{{/_bln_links}}
-{{#links}}
- - [`{{elt}}`]({{elt}})
-{{/links}}
-
-{{#_bln_keywords}}# Keywords
-{{/_bln_keywords}}
-{{#keywords}}
- - #{{elt}}
-{{/keywords}}
-
-{{#_bln_files}}# Files
-{{/_bln_files}}
-{{#files}}
- - [`{{elt}}`](vscode://file/{{elt}})
-{{/files}}
-
-{{#abstract}}
-# Abstract  
-{{&abstract}}
-{{/abstract}}
-
-{{#note}}
-# Notes
-{{&note}}
-{{/note}}
-"""
-
 AuthorTagDictKeys = Literal['tag_name', 'str_name']
 AuthorTagDict = Dict[AuthorTagDictKeys,str]
 
@@ -317,7 +368,7 @@ class CitationEntry:
 	bib_meta : Optional[OrderedDictType[str, str]] = None
 
 	@staticmethod
-	def from_bib(bib_key, bib_entry : biblib.bib.Entry) -> 'CitationEntry':
+	def from_bib(bib_key, bib_entry : biblib.bib.Entry, cfg : Config) -> 'CitationEntry':
 		"""create a citation entry from a biblib entry"""
 		authors : List[str] = list()
 		author_tags : Optional[List[AuthorTagDict]] = list()
@@ -328,7 +379,7 @@ class CitationEntry:
 			]
 
 			author_tags = [
-				{ 'tag_name' : name_to_tag(nm), 'str_name' : nm_str }
+				{ 'tag_name' : name_to_tag(nm, cfg), 'str_name' : nm_str }
 				for nm,nm_str in zip(bib_entry.authors(), authors)
 			]
 
@@ -503,37 +554,31 @@ def make_tag_note(tag : str, vault_loc : str) -> None:
 	with open(tag_path, 'w', encoding = 'utf-8') as f:
 		f.write(note.dumps())
 
-def full_process(
-		bib_filename : str, 
-		vault_loc : str = '../../refs-vault/',
-		note_prefix : str = 'refs.',
-		make_tag_notes : bool = True,
-		verbose : bool = False,
-		**kwargs,
-	):
+def full_process(cfg : Config):
 	"""given a bibtex file, output a vault of dendron notes"""
 
-	# load any extra config options
-	global GLOBAL_CONFIG
-	GLOBAL_CONFIG = {**GLOBAL_CONFIG, **kwargs}
-
-	db : OrderedDictType[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
+	# load the bibtext as a bunch of biblib entries
+	db : OrderedDictType[str, biblib.bib.Entry] = load_bibtex_raw(cfg.bib_filename)
 
 	all_tags : List[str] = list()
-	vault_prefix : str = vault_loc + note_prefix
+	vault_prefix : str = cfg.vault_loc + cfg.note_prefix
 
 	for key,val in db.items():
-		if verbose:
+		if cfg.verbose:
 			print(f'processing key:\t{key}')
 
-		entry : CitationEntry = CitationEntry.from_bib(key, val)
+		# convert biblib entries to our format
+		entry : CitationEntry = CitationEntry.from_bib(key, val, cfg = cfg)
+		# save the tags for later
 		all_tags.extend(entry.get_all_tags())
 
-		note : PandocMarkdown = entry.to_md()
+		# make the note
+		note : PandocMarkdown = entry.to_md(cfg.template)
 		fname : str = f'{vault_prefix}{key}.md'
 
-		# if the filename exists, get the created time and id from the old note
+		# handle note metadata
 		if os.path.exists(fname):
+			# if the filename exists, get the created time and id from the old note
 			old_note : PandocMarkdown = PandocMarkdown()
 			old_note.load(fname)
 
@@ -552,19 +597,51 @@ def full_process(
 			note.update_time()
 			note.yaml_data['id'] = gen_dendron_ID()
 
+		# save the note
 		with open(fname, 'w', encoding = 'utf-8') as f:
 			f.write(note.dumps())
 	
-	if make_tag_notes:
-		for tag in all_tags:
-			if verbose:
+	# make notes for any given tag
+	# dendron backlinks can be used to see which notes are linked to a tag
+	# NOTE: existing notes will not be overwritten. 
+	if cfg.make_tag_notes:
+		for tag in set(all_tags):
+			if cfg.verbose:
 				print(f'processing tag:\t{tag}')
-			make_tag_note(tag, vault_loc)
+			make_tag_note(tag, cfg.vault_loc)
 
+
+def main(cfg_path : Optional[str], **kwargs):
+	"""read config from both file and kwargs, merge (kwargs overwrite), run `full_process`"""
+	
+	# help message
+	if any(x.lower() in ['h', 'help'] for x in kwargs.keys()):
+		print(main.__doc__)
+		sys.exit(0)
+
+	# load config from file
+	file_data : Dict[str, Any] = dict()
+	if cfg_path is not None:
+		with open(cfg_path, 'r', encoding = 'utf-8') as f:
+			if any(cfg_path.endswith(x) for x in ['.yaml', '.yml']):
+				file_data = yaml.load(f, Loader = yaml.FullLoader)
+			elif cfg_path.endswith('.json'):
+				file_data = json.load(f)
+			else:
+				raise ValueError(f'unknown config file type: {cfg_path}')
+	
+	# turn kwargs, file into config
+	file_cfg : Config = Config(**file_data)
+	kwargs_cfg : Config = Config(**kwargs)
+	
+	# merge configs and run
+	cfg : Config = file_cfg.merge(kwargs_cfg)
+
+	full_process(cfg)
 
 if __name__ == '__main__':
 	import fire # type: ignore
-	fire.Fire(full_process)
+	fire.Fire(main)
 
 
 
