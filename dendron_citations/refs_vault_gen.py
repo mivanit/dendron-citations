@@ -691,7 +691,7 @@ def print_help():
 	print(__doc__)
 	sys.exit(0)
 
-def print_cfg(fmt : str = 'json'):
+def print_cfg(fmt : str):
 	"""prints the default config as either json or yaml"""
 	cfg : Config = Config()
 	if fmt.lower() == 'json':
@@ -701,15 +701,23 @@ def print_cfg(fmt : str = 'json'):
 	else:
 		raise ValueError(f'unknown format: {fmt}')
 
-RUNME : Dict[str, Callable] = {
-	'gen' : gen,
-	'help' : print_help,
-	'print_cfg' : print_cfg,
-}
+def main(cfg_path : Optional[str] = None, **kwargs):
+	if 'help' in kwargs or 'h' in kwargs:
+		print_help()
+	elif 'print_cfg' in kwargs:
+		print_cfg(fmt = kwargs['fmt'] if 'fmt' in kwargs else 'json')
+	else:
+		gen(cfg_path, **kwargs)
+
+# RUNME : Dict[str, Callable] = {
+# 	'gen' : gen,
+# 	'help' : print_help,
+# 	'print_cfg' : print_cfg,
+# }
 
 if __name__ == '__main__':
 	import fire # type: ignore
-	fire.Fire(RUNME)
+	fire.Fire(main)
 
 
 

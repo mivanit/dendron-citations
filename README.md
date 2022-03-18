@@ -15,28 +15,37 @@ this allows the user to reference the dendron notes instead of raw bibtex item (
 
 ## Usage: 
 
-- `gen` : generate reference notes:
+generate reference notes:
 
 ```bash
-python refs_vault_gen.py gen [cfg_path] [kwargs]
+python refs_vault_gen.py [cfg_path] [--<kwarg>=<val>]
 ```
 
-- `help` : print help message and exit:
-```bash
-python refs_vault_gen.py help
+`cfg_path` can be positional. If arguments are passed, the defaults are used. Notably:
+```python
+bib_filename : str = 'refs.bib'
+vault_loc : str = 'vault/'
+note_prefix : str = 'refs.'
 ```
 
-- `print_cfg` : print to console an example config in either json or yaml:
+### Help and configuration
+
+- `--help` : print help message and exit:
+```bash
+python refs_vault_gen.py --help
+```
+
+- `--print_cfg` : print to console an example config in either json or yaml (json by default):
 
 ```bash
-python refs_vault_gen.py print_cfg [--fmt=<format>]
+python refs_vault_gen.py --print_cfg [--fmt=<format>]
 ```
 
 ### Generation:
 
 when running
 ```bash
-	python refs_vault_gen.py gen [cfg_path] [**kwargs]
+	python refs_vault_gen.py [cfg_path] [**kwargs]
 ```
 
 `cfg_path` should be the location of a yaml or json config file
