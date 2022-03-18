@@ -6,7 +6,7 @@
 
 	python refs_vault_gen.py gen [cfg_path] [kwargs]
 
-**help** : print this help message:
+**help** : print this help message and exit:
 
 	python refs_vault_gen.py help
 
@@ -37,11 +37,15 @@ the expected config elements, types, and default values are:
 """
 
 # standard library imports
-from typing import *
+from typing import (
+	Optional, Literal, Any,
+	Dict, List, NamedTuple,
+	Callable,
+)
+
 import os
 import sys
 import json
-from functools import cached_property
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass,asdict
 import unicodedata
@@ -127,10 +131,10 @@ def _get_template(self : 'Config') -> str:
 	if self.template_path is not None:
 		if os.path.isfile(self.template_path):
 			try:
-				with open(self.template_path, 'r') as f:
+				with open(self.template_path, 'r', encoding = 'utf-8') as f:
 					return str(f.read())
-			except Exception as e:
-				print(f"WARNING: using 'DEFAULT_TEMPLATE' -- couldn't read template file {self.template_path}:\t{e}")
+			except (OSError, IOError, FileNotFoundError) as err:
+				print(f"WARNING: using 'DEFAULT_TEMPLATE' -- couldn't read template file {self.template_path}:\t{err}")
 				return DEFAULT_TEMPLATE
 		else:
 			print(f"WARNING: using 'DEFAULT_TEMPLATE' -- template file {self.template_path} not found")
@@ -168,25 +172,6 @@ class Config:
 			kebab_case_tag_names = self.kebab_case_tag_names,
 			template_path = self.template_path,
 		)
-
-	@staticmethod
-	def merge(configs : List['Config']) -> 'Config':
-		"""merges a list of configs into a single config. later entries override earlier ones
-
-		Args:
-			configs (List[Config]): list of configs to merge
-
-		Returns:
-			Config: merged config
-		"""
-
-		config_dicts : List[Dict] = [c.as_dict() for c in configs]
-		merged_config : Dict = {}
-		
-		for config_dict in config_dicts:
-			merged_config.update(config_dict)
-
-		return Config(**merged_config)
 
 def strip_bibtex_fmt(s : str) -> str:
 	return (
@@ -277,7 +262,8 @@ def name_to_tag(name : 'biblib.Name', cfg : Config) -> str:
 
 	# we write to this global dict to later be able to list all the author aliases in the tag file
 	basic_str_name : str = f'{name.first} {name.last}'
-	global GLOBAL_AUTHORS_DICT
+
+	# global GLOBAL_AUTHORS_DICT
 	if basic_str_name not in GLOBAL_AUTHORS_DICT[output]:
 		GLOBAL_AUTHORS_DICT[output].append(basic_str_name)
 
@@ -312,8 +298,8 @@ def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 					pypandoc.convert_text(s, 'markdown', format = 'html')
 					.replace('# ', '## ')
 				)
-			except RuntimeError as e:
-				print(f"WARNING: couldn't convert note as HTML: {e}")
+			except RuntimeError as err:
+				print(f"WARNING: couldn't convert note as HTML: {err}")
 
 		elif s.count('\\') / len(s) > 0.01:
 			# probably latex
@@ -322,8 +308,8 @@ def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 					pypandoc.convert_text(s, 'markdown', format = 'latex')
 					.replace('# ', '## ')
 				)
-			except RuntimeError as e:
-				print(f"WARNING: couldn't convert note as LaTeX: {e}")
+			except RuntimeError as err:
+				print(f"WARNING: couldn't convert note as LaTeX: {err}")
 
 	# otherwise, assume plaintext/markdown and do some very fragile processing
 	s = (
@@ -434,8 +420,8 @@ class CitationEntry:
 				for nm,nm_str in zip(bib_entry.authors(), authors)
 			]
 
-		except biblib.bib.FieldError as e:
-			print('WARNING: ', e)
+		except biblib.bib.FieldError as err:
+			print('WARNING: ', err)
 
 		return CitationEntry(
 			bib_key = bib_key,
@@ -527,7 +513,9 @@ class CitationEntry:
 		]
 
 BIBTEX_ENTRY_TYPES_BASE : List[str] = [
-	'article', 'book', 'booklet', 'conference', 'inbook', 'incollection', 'inproceedings', 'manual', 'masterthesis', 'misc', 'phdthesis', 'proceedings', 'techreport', 'unpublished', 'online', 'software',
+	'article', 'book', 'booklet', 'conference', 'inbook', 'incollection', 
+	'inproceedings', 'manual', 'masterthesis', 'misc', 'phdthesis', 'proceedings', 
+	'techreport', 'unpublished', 'online', 'software',
 ]
 
 BIBTEX_ENTRY_TYPES_LINESTART : List[str] = [
@@ -545,8 +533,8 @@ def load_bibtex_raw(filename : str) -> OrderedDictType[str, biblib.bib.Entry]:
 				.parse(f, log_fp=sys.stderr)
 				.get_entries()
 			)
-		except biblib.bib.FieldError as e:
-			print('WARNING: ', e)
+		except biblib.bib.FieldError as err:
+			print('WARNING: ', err)
 			raise
 
 	# get the correct keys for the case
@@ -572,8 +560,7 @@ def load_bibtex_raw(filename : str) -> OrderedDictType[str, biblib.bib.Entry]:
 
 def make_tag_note(tag : str, vault_loc : str) -> None:
 	"""check for the existance of a tag note in the vault, and make it if it doesnt exist"""
-	global GLOBAL_AUTHORS_DICT
-
+	
 	tag_path : str = f'{vault_loc}tags.{tag}.md'
 	
 	if os.path.exists(tag_path):
@@ -587,6 +574,7 @@ def make_tag_note(tag : str, vault_loc : str) -> None:
 
 	note.content = f'# {tag}\n\n'
 
+	# global GLOBAL_AUTHORS_DICT
 	# if its an author tag, figure out all the names for the author:
 	if tag.startswith('author.'):
 		# removeprefix only works in python 3.9+
@@ -608,6 +596,8 @@ def make_tag_note(tag : str, vault_loc : str) -> None:
 def full_process(cfg : Config):
 	"""given a bibtex file, output a vault of dendron notes"""
 
+	if cfg.verbose:
+		print(cfg.as_dict())
 	# load the bibtext as a bunch of biblib entries
 	db : OrderedDictType[str, biblib.bib.Entry] = load_bibtex_raw(cfg.bib_filename)
 
@@ -616,7 +606,7 @@ def full_process(cfg : Config):
 
 	for key,val in db.items():
 		if cfg.verbose:
-			print(f'processing key:\t{key}')
+			print(f'  processing key:\t{key}')
 
 		# convert biblib entries to our format
 		entry : CitationEntry = CitationEntry.from_bib(key, val, cfg = cfg)
@@ -658,7 +648,7 @@ def full_process(cfg : Config):
 	if cfg.make_tag_notes:
 		for tag in set(all_tags):
 			if cfg.verbose:
-				print(f'processing tag:\t{tag}')
+				print(f'  processing tag:\t{tag}')
 			make_tag_note(tag, cfg.vault_loc)
 
 
@@ -667,27 +657,24 @@ def gen(cfg_path : Optional[str], **kwargs):
 
 	# change the working directory to the config file's directory
 	# this is so that relative paths work
-	cfg_dir : str = os.path.dirname(cfg_path)
-	os.chdir(cfg_dir)
-	cfg_path_rel : str = os.path.relpath(cfg_path, cfg_dir)
-
-	# load config from file
 	file_data : Dict[str, Any] = dict()
 	if cfg_path is not None:
-		with open(cfg_path_rel, 'r', encoding = 'utf-8') as f:
-			if any(cfg_path_rel.endswith(x) for x in ['.yaml', '.yml']):
-				file_data = yaml.load(f, Loader = yaml.FullLoader)
-			elif cfg_path_rel.endswith('.json'):
-				file_data = json.load(f)
-			else:
-				raise ValueError(f'unknown config file type: {cfg_path}')
-	
-	# turn kwargs, file into config
-	file_cfg : Config = Config(**file_data)
-	kwargs_cfg : Config = Config(**kwargs)
+		cfg_dir : str = os.path.dirname(cfg_path)
+		os.chdir(cfg_dir)
+		cfg_path_rel : str = os.path.relpath(cfg_path, cfg_dir)
+
+		# load config from file
+		if cfg_path is not None:
+			with open(cfg_path_rel, 'r', encoding = 'utf-8') as f:
+				if any(cfg_path_rel.endswith(x) for x in ['.yaml', '.yml']):
+					file_data = yaml.load(f, Loader = yaml.FullLoader)
+				elif cfg_path_rel.endswith('.json'):
+					file_data = json.load(f)
+				else:
+					raise ValueError(f'unknown config file type: {cfg_path}')
 	
 	# merge configs and run
-	cfg : Config = file_cfg.merge([file_cfg, kwargs_cfg])
+	cfg : Config = Config(**{**file_data, **kwargs})
 
 	full_process(cfg)
 
