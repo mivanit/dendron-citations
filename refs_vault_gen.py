@@ -1,5 +1,38 @@
-"""generates a vault of dendron notes corresponding to entries from a bibtex file
+"""generate a vault of dendron notes from entries in a bibtex file
 
+# Usage:
+
+**gen** : generate reference notes:
+
+	python refs_vault_gen.py gen [cfg_path] [kwargs]
+
+**help** : print this help message:
+
+	python refs_vault_gen.py help
+
+**print_cfg** : print to console an example config in either json or yaml:
+
+	python refs_vault_gen.py print_cfg [--fmt=<format>]
+
+# Generation:
+
+when running
+	python refs_vault_gen.py gen [cfg_path] [**kwargs]
+
+`cfg_path` should be the location of a yaml or json config file
+any of those items can be overwritten as keyword arguments using 
+`--<keyword>=<value>`
+
+the expected config elements, types, and default values are:
+```python
+	bib_filename : str = 'refs.bib'
+	vault_loc : str = 'vault/'
+	note_prefix : str = 'refs.'
+	make_tag_notes : bool = True
+	verbose : bool = False
+	kebab_case_tag_names : bool = False
+	template_path : Optional[str] = None
+```
 
 """
 
@@ -40,7 +73,6 @@ from md_util import PandocMarkdown,gen_dendron_ID
 
 
 # handle `OrderedDict` typing not working below 3.10
-print(sys.version_info)
 if (sys.version_info[1] < 10):
 	# we declare the ordered dict as just a dict here
 	# this will break MyPy, but it's fine
@@ -77,7 +109,7 @@ DEFAULT_TEMPLATE : str = """
 {{#_bln_files}}# Files
 {{/_bln_files}}
 {{#files}}
- - [`{{elt}}`](vscode://file/{{elt}})
+ - [`{{elt}}`]({{elt}})
 {{/files}}
 
 {{#abstract}}
@@ -92,11 +124,11 @@ DEFAULT_TEMPLATE : str = """
 """
 
 def _get_template(self : 'Config') -> str:
-	if self.template is not None:
+	if self.template_path is not None:
 		if os.path.isfile(self.template_path):
 			try:
 				with open(self.template_path, 'r') as f:
-					return f.read()
+					return str(f.read())
 			except Exception as e:
 				print(f"WARNING: using 'DEFAULT_TEMPLATE' -- couldn't read template file {self.template_path}:\t{e}")
 				return DEFAULT_TEMPLATE
@@ -106,8 +138,11 @@ def _get_template(self : 'Config') -> str:
 	else:
 		return DEFAULT_TEMPLATE
 
-@dataclass(frozen=True)
+# TODO: how can we dynamically get the template and circumvent `frozen=True`?
+# @dataclass(frozen=True)
+@dataclass
 class Config:
+	"""config for generating reference notes"""
 	bib_filename : str = 'refs.bib'
 	vault_loc : str = 'vault/'
 	note_prefix : str = 'refs.'
@@ -116,7 +151,23 @@ class Config:
 	kebab_case_tag_names : bool = False
 	template_path : Optional[str] = None
 	
-	template : str = cached_property(_get_template)
+	template : str = DEFAULT_TEMPLATE
+	# template : str = cached_property(_get_template)
+
+	def __post_init__(self):
+		self.template = _get_template(self)
+
+
+	def as_dict(self) -> Dict:
+		return dict(
+			bib_filename = self.bib_filename,
+			vault_loc = self.vault_loc,
+			note_prefix = self.note_prefix,
+			make_tag_notes = self.make_tag_notes,
+			verbose = self.verbose,
+			kebab_case_tag_names = self.kebab_case_tag_names,
+			template_path = self.template_path,
+		)
 
 	@staticmethod
 	def merge(configs : List['Config']) -> 'Config':
@@ -129,7 +180,7 @@ class Config:
 			Config: merged config
 		"""
 
-		config_dicts : List[Dict] = [asdict(c) for c in configs]
+		config_dicts : List[Dict] = [c.as_dict() for c in configs]
 		merged_config : Dict = {}
 		
 		for config_dict in config_dicts:
@@ -187,7 +238,7 @@ BibLib_like_Name = NamedTuple('BibLib_like_Name', [
 
 def _name_to_tag_helper(name : str, kebab_case_tag_names : bool) -> str:
 	return to_alpha(
-		process_tag_name(name.first, kebab_case_tag_names = kebab_case_tag_names)
+		process_tag_name(name, kebab_case_tag_names = kebab_case_tag_names)
 		.strip()
 		.strip('_-,.}{')
 	).lower()
@@ -441,7 +492,7 @@ class CitationEntry:
 		return d_out
 
 
-	def to_md(self, template : str = DEFAULT_TEMPLATE) -> PandocMarkdown:
+	def to_md(self, template : str) -> PandocMarkdown:
 		"""create a markdown string from a template"""
 		note : PandocMarkdown = PandocMarkdown.get_dendron_template(
 			fm = {"traitIds" : "referenceNote"},
@@ -611,21 +662,22 @@ def full_process(cfg : Config):
 			make_tag_note(tag, cfg.vault_loc)
 
 
-def main(cfg_path : Optional[str], **kwargs):
+def gen(cfg_path : Optional[str], **kwargs):
 	"""read config from both file and kwargs, merge (kwargs overwrite), run `full_process`"""
-	
-	# help message
-	if any(x.lower() in ['h', 'help'] for x in kwargs.keys()):
-		print(main.__doc__)
-		sys.exit(0)
+
+	# change the working directory to the config file's directory
+	# this is so that relative paths work
+	cfg_dir : str = os.path.dirname(cfg_path)
+	os.chdir(cfg_dir)
+	cfg_path_rel : str = os.path.relpath(cfg_path, cfg_dir)
 
 	# load config from file
 	file_data : Dict[str, Any] = dict()
 	if cfg_path is not None:
-		with open(cfg_path, 'r', encoding = 'utf-8') as f:
-			if any(cfg_path.endswith(x) for x in ['.yaml', '.yml']):
+		with open(cfg_path_rel, 'r', encoding = 'utf-8') as f:
+			if any(cfg_path_rel.endswith(x) for x in ['.yaml', '.yml']):
 				file_data = yaml.load(f, Loader = yaml.FullLoader)
-			elif cfg_path.endswith('.json'):
+			elif cfg_path_rel.endswith('.json'):
 				file_data = json.load(f)
 			else:
 				raise ValueError(f'unknown config file type: {cfg_path}')
@@ -635,13 +687,32 @@ def main(cfg_path : Optional[str], **kwargs):
 	kwargs_cfg : Config = Config(**kwargs)
 	
 	# merge configs and run
-	cfg : Config = file_cfg.merge(kwargs_cfg)
+	cfg : Config = file_cfg.merge([file_cfg, kwargs_cfg])
 
 	full_process(cfg)
 
+def print_help():
+	print(__doc__)
+	sys.exit(0)
+
+def print_cfg(fmt : str = 'json'):
+	"""prints the default config as either json or yaml"""
+	cfg : Config = Config()
+	if fmt.lower() == 'json':
+		print(json.dumps(cfg.as_dict(), indent = 4))
+	elif fmt.lower() in ['yml', 'yaml']:
+		print(yaml.dump(cfg.as_dict(), default_flow_style = False))
+	else:
+		raise ValueError(f'unknown format: {fmt}')
+
+
 if __name__ == '__main__':
 	import fire # type: ignore
-	fire.Fire(main)
+	fire.Fire({
+		'gen' : gen,
+		'help' : print_help,
+		'print_cfg' : print_cfg,
+	})
 
 
 
