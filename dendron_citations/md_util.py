@@ -1,4 +1,9 @@
-from typing import *
+from typing import (
+	Any,
+	Dict, List, Tuple, Iterable,
+	Callable,
+)
+
 import os
 import time
 from copy import deepcopy
@@ -54,7 +59,7 @@ def gen_dendron_ID():
 def fm_add_to_list(
 		data : dict,
 		keylist : List[str],
-		insert_data : list,
+		insert_data : Iterable,
 	) -> dict:
 	"""add things to the frontmatter
 	
@@ -74,7 +79,7 @@ def fm_add_to_list(
 
 def fm_add_bib(
 		data : dict, 
-		bibfiles : List[str] = ['../refs_miv.bib', '../refs_knc.bib'],
+		bibfiles : Tuple[str,...] = ('../refs.bib', ),
 	) -> dict:
 	"""add the bib files to the frontmatter
 	
@@ -92,7 +97,7 @@ def fm_add_bib(
 
 def fm_add_filters(
 		data : dict, 
-		filters : List[str] = ['$FILTERS$/dendron_links_md.py'],
+		filters : Tuple[str,...] = ('$FILTERS$/dendron_links_md.py', ),
 	) -> dict:
 	"""add the filters to the frontmatter
 
@@ -111,7 +116,7 @@ def fm_add_filters(
 	)
 
 
-DEFAULT_KEYORDER : List[str] = [
+DEFAULT_KEYORDER : Tuple[str,...] = (
 	'title',
 	'desc',
 	'id',
@@ -120,7 +125,7 @@ DEFAULT_KEYORDER : List[str] = [
 	'bibliography',
 	'__defaults__',
 	'traitIds',
-]
+)
 
 # for some reason, line breaks (such as in the middle of a list) are 
 # either not handled properly by pyyaml, or not understood properly 
@@ -129,17 +134,35 @@ DEFAULT_KEYORDER : List[str] = [
 DEFAULT_WRITER : Callable = lambda x : yaml.dump(x, default_flow_style = None, sort_keys = False, width = 9999)
 
 class PandocMarkdown(object):
+	"""class for handling pandoc-style markdown and frontmatter"""
+
 	def __init__(
 			self, 
 			delim : str = '---',
 			loader : Callable[[str],dict] = yaml.safe_load,
-			keyorder : List[str] = DEFAULT_KEYORDER,
+			keyorder : Tuple[str,...] = DEFAULT_KEYORDER,
 			writer : Callable[[dict],str] = DEFAULT_WRITER,
 		) -> None:
+		"""class for handling pandoc-style markdown and frontmatter
+		
+		### Parameters:
+		 - `delim : str`   
+		   frontmatter delimeter
+		   (defaults to `'---'`)
+		 - `loader : Callable[[str],dict]`   
+		   frontmatter loader function
+		   (defaults to `yaml.safe_load`)
+		 - `keyorder : Tuple[str,...]`   
+		   order of how to print keys in frontmatter
+		   (defaults to `DEFAULT_KEYORDER`)
+		 - `writer : Callable[[dict],str]`   
+		   frontmatter writer function
+		   (defaults to `DEFAULT_WRITER`)
+		"""
 		
 		self.delim : str = delim
 		self.loader : Callable[[str],dict] = loader
-		self.keyorder : List[str] = keyorder
+		self.keyorder : Tuple[str,...] = keyorder
 		self.writer : Callable[[dict],str] = writer
 
 		self.initialized : bool = False
@@ -182,10 +205,10 @@ class PandocMarkdown(object):
 		if (self.yaml_data is None) or (self.content is None):
 			raise Exception('')
 
-		self.keyorder = self.keyorder + [
+		self.keyorder = tuple(list(self.keyorder) + [
 			k for k in self.yaml_data
 			if k not in self.keyorder
-		]
+		])
 		
 		# for k in self.keyorder:
 		# 	if not (k in self.yaml_data):
@@ -213,6 +236,10 @@ class PandocMarkdown(object):
 
 	@staticmethod
 	def get_dendron_template(fm : dict = DEFAULT_FRONTMATTER, do_id : bool = False) -> 'PandocMarkdown':
+		"""create a template pandoc markdown object for use with dendron
+		
+		specifically, created frontmatter elements "id", "created", and "updated"
+		"""
 		file = PandocMarkdown()
 
 		file.yaml_data = deepcopy(fm)
@@ -225,7 +252,7 @@ class PandocMarkdown(object):
 
 		return file
 
-def modify_file_fm(file : str, apply_funcs : List[Callable]) -> None:
+def modify_file_fm(file : str, apply_funcs : Tuple[Callable,...]) -> None:
 	pdm : PandocMarkdown = PandocMarkdown()
 	pdm.load(file)
 
@@ -236,21 +263,21 @@ def modify_file_fm(file : str, apply_funcs : List[Callable]) -> None:
 		f.write(pdm.dumps())
 
 def update_all_files_fm(
-		dir : str,
-		apply_funcs : List[Callable] = [fm_add_bib, fm_add_filters],
+		directory : str,
+		apply_funcs : Tuple[Callable,...] = (fm_add_bib, fm_add_filters),
 	) -> None:
 	"""update the frontmatter of all files in a directory
 	
 	### Parameters:
-	 - `dir : str`
+	 - `directory : str`
 	   the directory to update
-	 - `apply_funcs : List[Callable]`   
+	 - `apply_funcs : Tuple[Callable,...]`   
 	   list of functions to apply to the frontmatter
 	"""
 
-	for file in os.listdir(dir):
+	for file in os.listdir(directory):
 		if file.endswith(".md"):
-			modify_file_fm(f'{dir}/{file}', apply_funcs)
+			modify_file_fm(f'{directory}/{file}', apply_funcs)
 
 
 

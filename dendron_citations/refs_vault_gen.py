@@ -36,6 +36,8 @@ the expected config elements, types, and default values are:
 
 """
 
+# pylint: disable=invalid-name, bad-indentation
+
 # standard library imports
 from typing import (
 	Optional, Literal, Any,
@@ -73,7 +75,7 @@ except ImportError:
 	print('WARNING: pypandoc not available. converting notes from bibtex might not work')
 
 # local imports
-from md_util import PandocMarkdown,gen_dendron_ID
+from dendron_citations.md_util import PandocMarkdown,gen_dendron_ID
 
 
 # handle `OrderedDict` typing not working below 3.10
@@ -134,10 +136,12 @@ def _get_template(self : 'Config') -> str:
 				with open(self.template_path, 'r', encoding = 'utf-8') as f:
 					return str(f.read())
 			except (OSError, IOError, FileNotFoundError) as err:
-				print(f"WARNING: using 'DEFAULT_TEMPLATE' -- couldn't read template file {self.template_path}:\t{err}")
+				print(f"WARNING: couldn't read template file {self.template_path}:\t{err}", file = sys.stderr)
+				print("\twill use 'DEFAULT_TEMPLATE'")
 				return DEFAULT_TEMPLATE
 		else:
-			print(f"WARNING: using 'DEFAULT_TEMPLATE' -- template file {self.template_path} not found")
+			print(f"WARNING: template file {self.template_path} not found", file = sys.stderr)
+			print("\twill use 'DEFAULT_TEMPLATE'")
 			return DEFAULT_TEMPLATE
 	else:
 		return DEFAULT_TEMPLATE
@@ -234,7 +238,8 @@ def name_to_tag(name : 'biblib.Name', cfg : Config) -> str:
 	default format: `<first_char_of_first_name>-<last_name>`
 	"""
 
-	# if the first name is empty, we should check for the special case of the last name containing the full name in order
+	# if the first name is empty, we should check for the special case of 
+	# 	the last name containing the full name in order
 	if (name.first.strip() == '') and (name.last.strip().count(' ') > 0):
 		temp : List[str] = name.last.strip('}{ \t').split(' ')
 		if temp[0]:
@@ -372,10 +377,10 @@ def safe_get_split(
 
 	if key in d:
 		try:
-			return list([
+			return [
 				process(x)
 				for x in str(d[key]).split(sep)
-			])
+			]
 		except KeyError:
 			return default_factory()
 	else:
@@ -446,7 +451,7 @@ class CitationEntry:
 				['note', 'notes', 'annote', 'annotation', 'annotations', 'comments'],
 				process = lambda x : x,
 			)),
-			bib_meta = dict(bib_entry),
+			bib_meta = OrderedDict(bib_entry),
 		)
 
 	def serialize(self) -> Dict:
@@ -546,7 +551,11 @@ def load_bibtex_raw(filename : str) -> OrderedDictType[str, biblib.bib.Entry]:
 					all_keys.append(line.split('{')[1].split(',')[0])
 
 	# fix the keys in `db` with the matching correct-case keys in `all_keys`
-	assert len(all_keys) == len(db), f'manually read keys count doesnt match number of keys in database: {len(all_keys) = }\t{len(db) = }'
+	if not (len(all_keys) == len(db)): 
+		raise ValueError(
+			'manually read keys count doesnt match number of keys in database:\t'
+			+ f'{len(all_keys) = }\t{len(db) = }'
+		)
 
 	db_new : OrderedDictType[str, biblib.bib.Entry] = OrderedDict()
 	for key in all_keys:
@@ -692,14 +701,15 @@ def print_cfg(fmt : str = 'json'):
 	else:
 		raise ValueError(f'unknown format: {fmt}')
 
+RUNME : Dict[str, Callable] = {
+	'gen' : gen,
+	'help' : print_help,
+	'print_cfg' : print_cfg,
+}
 
 if __name__ == '__main__':
 	import fire # type: ignore
-	fire.Fire({
-		'gen' : gen,
-		'help' : print_help,
-		'print_cfg' : print_cfg,
-	})
+	fire.Fire(RUNME)
 
 
 
