@@ -6,6 +6,8 @@ examples/**
 examples/vault/**
 !examples/vault/*.md
 
+env/**
+
 .vscode/**
 
 # default python ignores

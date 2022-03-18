@@ -5,7 +5,7 @@ tool for making [Dendron](https://www.dendron.so) work well with citing things u
 WORK IN PROGRESS. please use with care, since this will overwrite files in your dendron vault
 
 
-# [`refs_vault_gen.py`](refs_vault_gen.py)
+# [`refs_vault_gen.py`](dendron_citations/refs_vault_gen.py)
 
 generates a vault of dendron notes corresponding to entries from a bibtex file
 
@@ -84,7 +84,7 @@ For now, you need to manually modify the template string `DEFAULT_TEMPLATE` in t
 
 # Installation:
 
-not yet on pypi. for now, you just need the files [`md_util.py`](md_util.py) and [`refs_vault_gen.py`](refs_vault_gen.py) somewhere, along with the dependencies listed below. This is a WORK IN PROGRESS, so I haven't put much work into streamlining installation.
+not yet on pypi. for now, you just need the files [`md_util.py`](dendron_citations/md_util.py) and [`redendron_citations/refs_vault_gen.py(refs_vault_gen.py) somewhere, along with the dependencies listed below. This is a WORK IN PROGRESS, so I haven't put much work into streamlining installation.
 
 you can install the requirements with
 ```bash
