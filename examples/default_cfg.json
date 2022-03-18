@@ -1,0 +1,9 @@
+{
+    "bib_filename": "refs.bib",
+    "vault_loc": "vault/",
+    "note_prefix": "refs.",
+    "make_tag_notes": true,
+    "verbose": false,
+    "kebab_case_tag_names": false,
+    "template_path": null
+}

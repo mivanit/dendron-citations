@@ -4,6 +4,8 @@ chevron
 pyyaml
 # updated version of biblib, not on pypi
 -e git+https://github.com/t-wissmann/biblib.git#egg=biblib
+# command line interface
+fire
 
 # for converstion of notes, optional
 pypandoc 

@@ -15,26 +15,57 @@ this allows the user to reference the dendron notes instead of raw bibtex item (
 
 ## Usage: 
 
+- `gen` : generate reference notes:
+
 ```bash
-python refs_vault_gen.py --bib_filename <bibtex_file> --vault_loc <output_dir>
-```
-or simply
-```bash
-python refs_vault_gen.py <bibtex_file> <output_dir>
+python refs_vault_gen.py gen [cfg_path] [kwargs]
 ```
 
-### Example:
-
-for example, if the script and a bibtex file `refs.bib` are both located in the directory containing our `vault/`, we may write
+- `help` : print help message and exit:
 ```bash
-python refs_vault_gen.py refs.bib vault/refs.
+python refs_vault_gen.py help
 ```
-this will create notes of the form `refs.some-bibtex-key.md` in the `vault/` directory.
 
-Given the bibtex file `examples/refs.bib`, the vault `examples/vault/` was generated with
+- `print_cfg` : print to console an example config in either json or yaml:
+
 ```bash
-py refs_vault_gen.py examples/refs.bib examples/vault/refs.
+python refs_vault_gen.py print_cfg [--fmt=<format>]
 ```
+
+### Generation:
+
+when running
+```bash
+	python refs_vault_gen.py gen [cfg_path] [**kwargs]
+```
+
+`cfg_path` should be the location of a yaml or json config file
+any of those items can be overwritten as keyword arguments using 
+`--<keyword>=<value>`
+
+the expected config elements, types, and default values are:
+```python
+	bib_filename : str = 'refs.bib'
+	vault_loc : str = 'vault/'
+	note_prefix : str = 'refs.'
+	make_tag_notes : bool = True
+	verbose : bool = False
+	kebab_case_tag_names : bool = False
+	template_path : Optional[str] = None
+```
+
+### Examples:
+
+```bash
+python refs_vault_gen.py gen --bib_filename=<bibtex_file> --vault_loc=<output_dir>
+```
+
+Or, we could create a config file such as [`examples/custom_cfg.json`](examples/custom_cfg.json) and pass it in as
+```bash
+python refs_vault_gen.py gen <path_to_config_file>
+```
+
+> **Note:** if you pass a config file, the script will change its directory to that of the config file, to allow paths to be specified relative to that file.
 
 
 ## tag notes

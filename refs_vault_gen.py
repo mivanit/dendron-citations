@@ -1,13 +1,51 @@
-"""generates a vault of dendron notes corresponding to entries from a bibtex file
+"""generate a vault of dendron notes from entries in a bibtex file
 
+# Usage:
+
+**gen** : generate reference notes:
+
+	python refs_vault_gen.py gen [cfg_path] [kwargs]
+
+**help** : print this help message and exit:
+
+	python refs_vault_gen.py help
+
+**print_cfg** : print to console an example config in either json or yaml:
+
+	python refs_vault_gen.py print_cfg [--fmt=<format>]
+
+# Generation:
+
+when running
+	python refs_vault_gen.py gen [cfg_path] [**kwargs]
+
+`cfg_path` should be the location of a yaml or json config file
+any of those items can be overwritten as keyword arguments using 
+`--<keyword>=<value>`
+
+the expected config elements, types, and default values are:
+```python
+	bib_filename : str = 'refs.bib'
+	vault_loc : str = 'vault/'
+	note_prefix : str = 'refs.'
+	make_tag_notes : bool = True
+	verbose : bool = False
+	kebab_case_tag_names : bool = False
+	template_path : Optional[str] = None
+```
 
 """
 
 # standard library imports
-from typing import *
+from typing import (
+	Optional, Literal, Any,
+	Dict, List, NamedTuple,
+	Callable,
+)
+
 import os
 import sys
-# import json
+import json
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass,asdict
 import unicodedata
@@ -39,7 +77,6 @@ from md_util import PandocMarkdown,gen_dendron_ID
 
 
 # handle `OrderedDict` typing not working below 3.10
-print(sys.version_info)
 if (sys.version_info[1] < 10):
 	# we declare the ordered dict as just a dict here
 	# this will break MyPy, but it's fine
@@ -48,13 +85,93 @@ else:
 	OrderedDictType = OrderedDict
 
 
-GLOBAL_CONFIG : Dict[str,Any] = {
-	'kebab_case_tag_names' : False,
-}
-
-
 OptionalStr = Optional[str]
 OptionalListStr = Optional[List[str]]
+
+
+DEFAULT_TEMPLATE : str = """
+
+
+{{#_bln_author_tags}}# Authors
+{{/_bln_author_tags}}
+{{#author_tags}}
+ - [[{{str_name}} | tags.{{tag_name}}]]
+{{/author_tags}}
+
+{{#_bln_links}}# Links
+{{/_bln_links}}
+{{#links}}
+ - [`{{elt}}`]({{elt}})
+{{/links}}
+
+{{#_bln_keywords}}# Keywords
+{{/_bln_keywords}}
+{{#keywords}}
+ - #{{elt}}
+{{/keywords}}
+
+{{#_bln_files}}# Files
+{{/_bln_files}}
+{{#files}}
+ - [`{{elt}}`]({{elt}})
+{{/files}}
+
+{{#abstract}}
+# Abstract  
+{{&abstract}}
+{{/abstract}}
+
+{{#note}}
+# Notes
+{{&note}}
+{{/note}}
+"""
+
+def _get_template(self : 'Config') -> str:
+	if self.template_path is not None:
+		if os.path.isfile(self.template_path):
+			try:
+				with open(self.template_path, 'r', encoding = 'utf-8') as f:
+					return str(f.read())
+			except (OSError, IOError, FileNotFoundError) as err:
+				print(f"WARNING: using 'DEFAULT_TEMPLATE' -- couldn't read template file {self.template_path}:\t{err}")
+				return DEFAULT_TEMPLATE
+		else:
+			print(f"WARNING: using 'DEFAULT_TEMPLATE' -- template file {self.template_path} not found")
+			return DEFAULT_TEMPLATE
+	else:
+		return DEFAULT_TEMPLATE
+
+# TODO: how can we dynamically get the template and circumvent `frozen=True`?
+# @dataclass(frozen=True)
+@dataclass
+class Config:
+	"""config for generating reference notes"""
+	bib_filename : str = 'refs.bib'
+	vault_loc : str = 'vault/'
+	note_prefix : str = 'refs.'
+	make_tag_notes : bool = True
+	verbose : bool = False
+	kebab_case_tag_names : bool = False
+	template_path : Optional[str] = None
+	
+	template : str = DEFAULT_TEMPLATE
+	# template : str = cached_property(_get_template)
+
+	def __post_init__(self):
+		self.template = _get_template(self)
+
+
+	def as_dict(self) -> Dict:
+		return dict(
+			bib_filename = self.bib_filename,
+			vault_loc = self.vault_loc,
+			note_prefix = self.note_prefix,
+			make_tag_notes = self.make_tag_notes,
+			verbose = self.verbose,
+			kebab_case_tag_names = self.kebab_case_tag_names,
+			template_path = self.template_path,
+		)
 
 def strip_bibtex_fmt(s : str) -> str:
 	return (
@@ -70,7 +187,7 @@ def strip_bibtex_fmt(s : str) -> str:
 		# .replace('\\', '')
 	)
 
-def process_tag_name(s : str, nodot : bool = True) -> str:
+def process_tag_name(s : str, nodot : bool = True, kebab_case_tag_names : bool = False) -> str:
 	s_new : str = (
 		unicodedata.normalize('NFKD', s)
 		.encode('ascii', 'ignore').decode('ascii')
@@ -82,7 +199,7 @@ def process_tag_name(s : str, nodot : bool = True) -> str:
 		.replace('/', '-')
 	)
 
-	if GLOBAL_CONFIG['kebab_case_tag_names']:
+	if kebab_case_tag_names:
 		s_new = s_new.replace('_', '-')
 		s_new = s_new.lower()
 
@@ -103,7 +220,15 @@ BibLib_like_Name = NamedTuple('BibLib_like_Name', [
 	('last',str),
 ])
 
-def name_to_tag(name : 'biblib.Name') -> str:
+
+def _name_to_tag_helper(name : str, kebab_case_tag_names : bool) -> str:
+	return to_alpha(
+		process_tag_name(name, kebab_case_tag_names = kebab_case_tag_names)
+		.strip()
+		.strip('_-,.}{')
+	).lower()
+
+def name_to_tag(name : 'biblib.Name', cfg : Config) -> str:
 	"""convert a bibtex name to a tag name
 	
 	default format: `<first_char_of_first_name>-<last_name>`
@@ -113,10 +238,10 @@ def name_to_tag(name : 'biblib.Name') -> str:
 	if (name.first.strip() == '') and (name.last.strip().count(' ') > 0):
 		temp : List[str] = name.last.strip('}{ \t').split(' ')
 		if temp[0]:
-			return name_to_tag(BibLib_like_Name(first = temp[0], last = temp[-1]))
+			return name_to_tag(BibLib_like_Name(first = temp[0], last = temp[-1]), cfg)
 
-	first : str = to_alpha(process_tag_name(name.first).strip().strip('_-,.}{')).lower()
-	last : str = to_alpha(process_tag_name(name.last).strip().strip('_-,.}{')).lower()
+	first : str = _name_to_tag_helper(name.first, kebab_case_tag_names = cfg.kebab_case_tag_names)
+	last : str = _name_to_tag_helper(name.last, kebab_case_tag_names = cfg.kebab_case_tag_names)
 
 	# make the first letters capital, checking for length
 	if first:
@@ -137,7 +262,8 @@ def name_to_tag(name : 'biblib.Name') -> str:
 
 	# we write to this global dict to later be able to list all the author aliases in the tag file
 	basic_str_name : str = f'{name.first} {name.last}'
-	global GLOBAL_AUTHORS_DICT
+
+	# global GLOBAL_AUTHORS_DICT
 	if basic_str_name not in GLOBAL_AUTHORS_DICT[output]:
 		GLOBAL_AUTHORS_DICT[output].append(basic_str_name)
 
@@ -172,8 +298,8 @@ def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 					pypandoc.convert_text(s, 'markdown', format = 'html')
 					.replace('# ', '## ')
 				)
-			except RuntimeError as e:
-				print(f"WARNING: couldn't convert note as HTML: {e}")
+			except RuntimeError as err:
+				print(f"WARNING: couldn't convert note as HTML: {err}")
 
 		elif s.count('\\') / len(s) > 0.01:
 			# probably latex
@@ -182,8 +308,8 @@ def process_note_HACKY(s : OptionalStr) -> OptionalStr:
 					pypandoc.convert_text(s, 'markdown', format = 'latex')
 					.replace('# ', '## ')
 				)
-			except RuntimeError as e:
-				print(f"WARNING: couldn't convert note as LaTeX: {e}")
+			except RuntimeError as err:
+				print(f"WARNING: couldn't convert note as LaTeX: {err}")
 
 	# otherwise, assume plaintext/markdown and do some very fragile processing
 	s = (
@@ -257,44 +383,6 @@ def safe_get_split(
 
 
 
-DEFAULT_TEMPLATE : str = """
-
-
-{{#_bln_author_tags}}# Authors
-{{/_bln_author_tags}}
-{{#author_tags}}
- - [[{{str_name}} | tags.{{tag_name}}]]
-{{/author_tags}}
-
-{{#_bln_links}}# Links
-{{/_bln_links}}
-{{#links}}
- - [`{{elt}}`]({{elt}})
-{{/links}}
-
-{{#_bln_keywords}}# Keywords
-{{/_bln_keywords}}
-{{#keywords}}
- - #{{elt}}
-{{/keywords}}
-
-{{#_bln_files}}# Files
-{{/_bln_files}}
-{{#files}}
- - [`{{elt}}`](vscode://file/{{elt}})
-{{/files}}
-
-{{#abstract}}
-# Abstract  
-{{&abstract}}
-{{/abstract}}
-
-{{#note}}
-# Notes
-{{&note}}
-{{/note}}
-"""
-
 AuthorTagDictKeys = Literal['tag_name', 'str_name']
 AuthorTagDict = Dict[AuthorTagDictKeys,str]
 
@@ -317,7 +405,7 @@ class CitationEntry:
 	bib_meta : Optional[OrderedDictType[str, str]] = None
 
 	@staticmethod
-	def from_bib(bib_key, bib_entry : biblib.bib.Entry) -> 'CitationEntry':
+	def from_bib(bib_key, bib_entry : biblib.bib.Entry, cfg : Config) -> 'CitationEntry':
 		"""create a citation entry from a biblib entry"""
 		authors : List[str] = list()
 		author_tags : Optional[List[AuthorTagDict]] = list()
@@ -328,12 +416,12 @@ class CitationEntry:
 			]
 
 			author_tags = [
-				{ 'tag_name' : name_to_tag(nm), 'str_name' : nm_str }
+				{ 'tag_name' : name_to_tag(nm, cfg), 'str_name' : nm_str }
 				for nm,nm_str in zip(bib_entry.authors(), authors)
 			]
 
-		except biblib.bib.FieldError as e:
-			print('WARNING: ', e)
+		except biblib.bib.FieldError as err:
+			print('WARNING: ', err)
 
 		return CitationEntry(
 			bib_key = bib_key,
@@ -390,7 +478,7 @@ class CitationEntry:
 		return d_out
 
 
-	def to_md(self, template : str = DEFAULT_TEMPLATE) -> PandocMarkdown:
+	def to_md(self, template : str) -> PandocMarkdown:
 		"""create a markdown string from a template"""
 		note : PandocMarkdown = PandocMarkdown.get_dendron_template(
 			fm = {"traitIds" : "referenceNote"},
@@ -425,7 +513,9 @@ class CitationEntry:
 		]
 
 BIBTEX_ENTRY_TYPES_BASE : List[str] = [
-	'article', 'book', 'booklet', 'conference', 'inbook', 'incollection', 'inproceedings', 'manual', 'masterthesis', 'misc', 'phdthesis', 'proceedings', 'techreport', 'unpublished', 'online', 'software',
+	'article', 'book', 'booklet', 'conference', 'inbook', 'incollection', 
+	'inproceedings', 'manual', 'masterthesis', 'misc', 'phdthesis', 'proceedings', 
+	'techreport', 'unpublished', 'online', 'software',
 ]
 
 BIBTEX_ENTRY_TYPES_LINESTART : List[str] = [
@@ -443,8 +533,8 @@ def load_bibtex_raw(filename : str) -> OrderedDictType[str, biblib.bib.Entry]:
 				.parse(f, log_fp=sys.stderr)
 				.get_entries()
 			)
-		except biblib.bib.FieldError as e:
-			print('WARNING: ', e)
+		except biblib.bib.FieldError as err:
+			print('WARNING: ', err)
 			raise
 
 	# get the correct keys for the case
@@ -470,8 +560,7 @@ def load_bibtex_raw(filename : str) -> OrderedDictType[str, biblib.bib.Entry]:
 
 def make_tag_note(tag : str, vault_loc : str) -> None:
 	"""check for the existance of a tag note in the vault, and make it if it doesnt exist"""
-	global GLOBAL_AUTHORS_DICT
-
+	
 	tag_path : str = f'{vault_loc}tags.{tag}.md'
 	
 	if os.path.exists(tag_path):
@@ -485,6 +574,7 @@ def make_tag_note(tag : str, vault_loc : str) -> None:
 
 	note.content = f'# {tag}\n\n'
 
+	# global GLOBAL_AUTHORS_DICT
 	# if its an author tag, figure out all the names for the author:
 	if tag.startswith('author.'):
 		# removeprefix only works in python 3.9+
@@ -503,37 +593,33 @@ def make_tag_note(tag : str, vault_loc : str) -> None:
 	with open(tag_path, 'w', encoding = 'utf-8') as f:
 		f.write(note.dumps())
 
-def full_process(
-		bib_filename : str, 
-		vault_loc : str = '../../refs-vault/',
-		note_prefix : str = 'refs.',
-		make_tag_notes : bool = True,
-		verbose : bool = False,
-		**kwargs,
-	):
+def full_process(cfg : Config):
 	"""given a bibtex file, output a vault of dendron notes"""
 
-	# load any extra config options
-	global GLOBAL_CONFIG
-	GLOBAL_CONFIG = {**GLOBAL_CONFIG, **kwargs}
-
-	db : OrderedDictType[str, biblib.bib.Entry] = load_bibtex_raw(bib_filename)
+	if cfg.verbose:
+		print(cfg.as_dict())
+	# load the bibtext as a bunch of biblib entries
+	db : OrderedDictType[str, biblib.bib.Entry] = load_bibtex_raw(cfg.bib_filename)
 
 	all_tags : List[str] = list()
-	vault_prefix : str = vault_loc + note_prefix
+	vault_prefix : str = cfg.vault_loc + cfg.note_prefix
 
 	for key,val in db.items():
-		if verbose:
-			print(f'processing key:\t{key}')
+		if cfg.verbose:
+			print(f'  processing key:\t{key}')
 
-		entry : CitationEntry = CitationEntry.from_bib(key, val)
+		# convert biblib entries to our format
+		entry : CitationEntry = CitationEntry.from_bib(key, val, cfg = cfg)
+		# save the tags for later
 		all_tags.extend(entry.get_all_tags())
 
-		note : PandocMarkdown = entry.to_md()
+		# make the note
+		note : PandocMarkdown = entry.to_md(cfg.template)
 		fname : str = f'{vault_prefix}{key}.md'
 
-		# if the filename exists, get the created time and id from the old note
+		# handle note metadata
 		if os.path.exists(fname):
+			# if the filename exists, get the created time and id from the old note
 			old_note : PandocMarkdown = PandocMarkdown()
 			old_note.load(fname)
 
@@ -552,19 +638,68 @@ def full_process(
 			note.update_time()
 			note.yaml_data['id'] = gen_dendron_ID()
 
+		# save the note
 		with open(fname, 'w', encoding = 'utf-8') as f:
 			f.write(note.dumps())
 	
-	if make_tag_notes:
-		for tag in all_tags:
-			if verbose:
-				print(f'processing tag:\t{tag}')
-			make_tag_note(tag, vault_loc)
+	# make notes for any given tag
+	# dendron backlinks can be used to see which notes are linked to a tag
+	# NOTE: existing notes will not be overwritten. 
+	if cfg.make_tag_notes:
+		for tag in set(all_tags):
+			if cfg.verbose:
+				print(f'  processing tag:\t{tag}')
+			make_tag_note(tag, cfg.vault_loc)
+
+
+def gen(cfg_path : Optional[str], **kwargs):
+	"""read config from both file and kwargs, merge (kwargs overwrite), run `full_process`"""
+
+	# change the working directory to the config file's directory
+	# this is so that relative paths work
+	file_data : Dict[str, Any] = dict()
+	if cfg_path is not None:
+		cfg_dir : str = os.path.dirname(cfg_path)
+		os.chdir(cfg_dir)
+		cfg_path_rel : str = os.path.relpath(cfg_path, cfg_dir)
+
+		# load config from file
+		if cfg_path is not None:
+			with open(cfg_path_rel, 'r', encoding = 'utf-8') as f:
+				if any(cfg_path_rel.endswith(x) for x in ['.yaml', '.yml']):
+					file_data = yaml.load(f, Loader = yaml.FullLoader)
+				elif cfg_path_rel.endswith('.json'):
+					file_data = json.load(f)
+				else:
+					raise ValueError(f'unknown config file type: {cfg_path}')
+	
+	# merge configs and run
+	cfg : Config = Config(**{**file_data, **kwargs})
+
+	full_process(cfg)
+
+def print_help():
+	print(__doc__)
+	sys.exit(0)
+
+def print_cfg(fmt : str = 'json'):
+	"""prints the default config as either json or yaml"""
+	cfg : Config = Config()
+	if fmt.lower() == 'json':
+		print(json.dumps(cfg.as_dict(), indent = 4))
+	elif fmt.lower() in ['yml', 'yaml']:
+		print(yaml.dump(cfg.as_dict(), default_flow_style = False))
+	else:
+		raise ValueError(f'unknown format: {fmt}')
 
 
 if __name__ == '__main__':
 	import fire # type: ignore
-	fire.Fire(full_process)
+	fire.Fire({
+		'gen' : gen,
+		'help' : print_help,
+		'print_cfg' : print_cfg,
+	})
 
 
 
