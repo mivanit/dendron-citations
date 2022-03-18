@@ -1,3 +1,4 @@
-from dendron_citations import refs_vault_gen
+from dendron_citations.refs_vault_gen import RUNME
 
-gen()
+import fire
+fire.Fire(RUNME)

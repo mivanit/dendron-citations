@@ -1,0 +1,5 @@
+mypy
+pylint
+
+# not working :(
+# pytype
