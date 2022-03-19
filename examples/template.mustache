@@ -1,0 +1,33 @@
+{{#_bln_author_tags}}# Authors
+{{/_bln_author_tags}}
+{{#author_tags}}
+ - [[{{str_name}} | tags.{{tag_name}}]]
+{{/author_tags}}
+
+{{#_bln_links}}# Links
+{{/_bln_links}}
+{{#links}}
+ - [`{{elt}}`]({{elt}})
+{{/links}}
+
+{{#_bln_keywords}}# Keywords
+{{/_bln_keywords}}
+{{#keywords}}
+ - #{{elt}}
+{{/keywords}}
+
+{{#_bln_files}}# Files
+{{/_bln_files}}
+{{#files}}
+ - [`{{elt}}`](vscode://file/{{elt}})
+{{/files}}
+
+{{#abstract}}
+# Abstract  
+{{&abstract}}
+{{/abstract}}
+
+{{#note}}
+# Notes
+{{&note}}
+{{/note}}
