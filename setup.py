@@ -10,16 +10,23 @@ def get_requirements() -> list:
 	from: https://stackoverflow.com/questions/69842651/parse-error-in-pip-e-gith-expected-wabcd
 	"""
     with open('requirements.txt') as f:
-        packages = []
+        packages : list = []
         for line in f:
             line = line.strip()
             # let's also ignore empty lines and comments
             if not line or line.startswith('#'):
                 continue
             if 'https://' in line:
-                tail = line.rsplit('/', 1)[1]
-                tail = tail.split('#')[0]
-                line = tail.replace('@', '==').replace('.git', '')
+                # tail = line.rsplit('/', 1)[1]
+                # tail = tail.split('#')[0]
+                # line = tail.replace('@', '==').replace('.git', '')
+                if (line.count('#egg=') != 1) or (not line.startswith('-e ')):
+                    raise ValueError(f'cant parse required package: {line}')
+
+                pckgname : str = line.split('#egg=')[-1]
+
+                line = pckgname + ' @ ' + line.split('-e ', 1)[-1].strip()
+
             packages.append(line)
     return packages
 

@@ -1,3 +1,5 @@
+"""provides `PandocMarkdown` class"""
+
 from typing import (
 	Any,
 	Dict, List, Tuple, Iterable,
@@ -133,7 +135,7 @@ DEFAULT_KEYORDER : Tuple[str,...] = (
 # so, we set the width very high as a result to prevent this
 DEFAULT_WRITER : Callable = lambda x : yaml.dump(x, default_flow_style = None, sort_keys = False, width = 9999)
 
-class PandocMarkdown(object):
+class PandocMarkdown:
 	"""class for handling pandoc-style markdown and frontmatter"""
 
 	def __init__(

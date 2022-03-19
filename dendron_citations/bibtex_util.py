@@ -1,42 +1,20 @@
+"""bibtex utilities: entry types, loading using `biblib`"""
+
+
 # standard library imports
 from typing import (
-	Optional, Literal, Any,
-	Dict, List, NamedTuple,
-	Callable,
+	List,
 )
 
-import os
 import sys
-import json
-from collections import OrderedDict, defaultdict
-from dataclasses import dataclass,asdict
-import unicodedata
+from collections import OrderedDict
 
 # package imports
-import yaml # type: ignore
-
-# implementation of mustache templating
-import chevron # type: ignore 
-
 import biblib.bib # type: ignore
-
-# optional pypandoc stuff
-try:
-	import pypandoc # type: ignore
-	try:
-		pypandoc.get_pandoc_version()
-		PYPANDOC_AVAILABLE = True
-	except RuntimeError as e:
-		PYPANDOC_AVAILABLE = False
-		print(f"WARNING: pypandoc couldn't find pandoc: {e}")
-
-except ImportError:
-	PYPANDOC_AVAILABLE = False
-	print('WARNING: pypandoc not available. converting notes from bibtex might not work')
 
 # local imports
 from dendron_citations.dc_util import (
-	OptionalStr,OptionalListStr,OrderedDictType,
+	OrderedDictType,
 )
 
 BIBTEX_ENTRY_TYPES_BASE : List[str] = [

@@ -1,24 +1,17 @@
+"""string processing, tag name conversion, safe getters for bibtex fields"""
+
+
 # standard library imports
 from typing import (
-	Optional, Literal, Any,
-	Dict, List, NamedTuple,
+	Dict, List, Tuple, NamedTuple,
 	Callable,
 )
 
-import os
-import sys
-import json
-from collections import OrderedDict, defaultdict
-from dataclasses import dataclass,asdict
+from collections import defaultdict
 import unicodedata
 
 # package imports
-import yaml # type: ignore
-
-# implementation of mustache templating
-import chevron # type: ignore 
-
-import biblib.bib # type: ignore
+# import biblib # type: ignore
 
 # optional pypandoc stuff
 try:
@@ -37,7 +30,7 @@ except ImportError:
 
 # local imports
 from dendron_citations.dc_util import (
-	OptionalStr,OptionalListStr,OrderedDictType,
+	OptionalStr,
 )
 from dendron_citations.config import Config
 
@@ -100,7 +93,11 @@ def _name_to_tag_helper(name : str, kebab_case_tag_names : bool) -> str:
 		.strip('_-,.}{')
 	).lower()
 
-def name_to_tag(name : 'biblib.Name', cfg : Config) -> str:
+
+# TODO: make this type work properly
+Biblib_Name_Type = Tuple
+
+def name_to_tag(name : Biblib_Name_Type, cfg : Config) -> str:
 	"""convert a bibtex name to a tag name
 	
 	default format: `<first_char_of_first_name>-<last_name>`

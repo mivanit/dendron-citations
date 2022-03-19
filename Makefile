@@ -4,7 +4,8 @@ ENV = env
 # block separator
 BSP = "======================================================================"
 
-PYLINT_OPTIONS = --disable=invalid-name,bad-indentation,use-list-literal,use-dict-literal,superfluous-parens,trailing-whitespace,trailing-newlines,too-many-instance-attributes
+# PYLINT_OPTIONS = --disable=invalid-name,bad-indentation,use-list-literal,use-dict-literal,superfluous-parens,trailing-whitespace,trailing-newlines,too-many-instance-attributes
+PYLINT_OPTIONS = --disable=invalid-name,bad-indentation,use-list-literal,use-dict-literal,superfluous-parens,trailing-whitespace,trailing-newlines,too-many-instance-attributes,missing-function-docstring,line-too-long,wrong-import-position
 
 # detecting os
 ifeq ($(OS),Windows_NT)
@@ -23,14 +24,15 @@ setup_env:
 	@printf "$(BSP)\n# setting up virtual environment  \n$(BSP)\n"
 	python -m venv env
 
-	@printf "$(BSP)\n# installing package dependencies  \n$(BSP)\n"
-	$(ENV)/Scripts/pip install -r requirements.txt
-
 	@printf "$(BSP)\n# installing dev dependencies  \n$(BSP)\n"
 	$(ENV)/Scripts/pip install -r requirements_dev.txt
 
 	@printf "$(BSP)\n# installing package  \n$(BSP)\n"
 	$(ENV)/Scripts/pip install -e .
+
+# @printf "$(BSP)\n# installing package dependencies  \n$(BSP)\n"
+# $(ENV)/Scripts/pip install -r requirements.txt
+
 
 	@printf "$(BSP)\n# installation complete!  \n$(BSP)\n"
 
@@ -48,10 +50,10 @@ check:
 	@echo "$(SOURCE)"
 	
 	@printf "$(BSP)\n# running mypy  \n$(BSP)\n"
-	-$(ENV)/Scripts/mypy $(SOURCE)
+	$(ENV)/Scripts/mypy $(SOURCE)
 
 	@printf "$(BSP)\n# running pylint  \n$(BSP)\n"
-	-$(ENV)/Scripts/pylint $(SOURCE) $(PYLINT_OPTIONS)
+	$(ENV)/Scripts/pylint $(SOURCE) $(PYLINT_OPTIONS)
 
 	@printf "$(BSP)\n# type checking complete!  \n$(BSP)\n"
 
