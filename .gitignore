@@ -1,3 +1,5 @@
+!extension/build/*.py
+
 # examples/**
 # !examples/*.bib
 # !examples/*_cfg.yml
