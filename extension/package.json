@@ -1,0 +1,33 @@
+{
+  "name": "dendron_citations",
+  "displayName": "dendron_citations",
+  "version": "v0.0.1",
+  "engines": {
+    "vscode": "^1.58.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./build/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "dendron_citations.Generate Dendron citation notes",
+        "title": "Generate Dendron Citation Notes"
+      }
+    ],
+    "configuration": {
+      "title": "dendron_citations",
+      "properties": {
+        "dendron_citations.dendron_citations_cfg_path": {
+          "description": "configuration file path for dendron_citations",
+          "type": "string",
+          "default": "dc_config.json"
+        }
+      }
+    }
+  },
+  "activationEvents": [
+    "onCommand:dendron_citations.Generate Dendron citation notes"
+  ]
+}
