@@ -136,6 +136,35 @@ to print
 
 or to return an empty string (with newlines) if `keywords` is empty.
 
+## vscode task
+
+in order to have a vscode shortcut to running the `dendron_gen_refs.py` script, we can take advantage of [VSCode Tasks](https://code.visualstudio.com/docs/editor/tasks) and add the following task to `.vscode/tasks.json`:
+
+```json
+{
+	"label": "dendron-citations",
+	"type": "shell",
+	"command": "dendron_gen_refs.py {{your_config_file}}",
+}
+```
+
+where `{{your_config_file}}` is the path to your config file relative to the root of the workspace -- for example, `examples/custom_cfg.json`
+
+
+
+## cross-vault links snippet
+
+to allow simpler references to papers in a separate vault, without having to type `[[dendron://refs-vault/<bibtex key>]]`, the user may create a vscode snippet in `> Preferences > Configure User Snippets > markdown.json`
+
+```json
+"dendron-cite": {
+	"prefix": "@",
+	"body": [
+		"[[dendron://refs-vault/refs.$1]]"
+	],
+	"description": "dendron reference citation"
+},
+```
 
 
 
@@ -181,16 +210,4 @@ to see some utilities for developing (setting up a virtual environment, running 
 
 
 
-# Misc
 
-- to allow simpler references to papers in a separate vault, without having to type `[[dendron://refs-vault/<bibtex key>]]`, the user may create a vscode snippet in `> Preferences > Configure User Snippets > markdown.json`
-
-```json
-"dendron-cite": {
-	"prefix": "@",
-	"body": [
-		"[[dendron://refs-vault/refs.$1]]"
-	],
-	"description": "dendron reference citation"
-},
-```
