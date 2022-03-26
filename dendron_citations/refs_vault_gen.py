@@ -1,23 +1,31 @@
 """generate a vault of dendron notes from entries in a bibtex file
+# Usage: 
 
-# Usage:
+to generate reference notes, run from anywhere:
 
-**gen** : generate reference notes:
+```bash
+dendron_gen_refs.py [cfg_path] [--<kwarg>=<val>]
+```
 
-	python refs_vault_gen.py gen [cfg_path] [kwargs]
+## Help and configuration
 
-**help** : print this help message and exit:
+- `--help` : print help message and exit:
+```bash
+dendron_gen_refs.py --help
+```
 
-	python refs_vault_gen.py help
+- `--print_cfg` : print to console an example config in either json or yaml (json by default):
 
-**print_cfg** : print to console an example config in either json or yaml:
+```bash
+dendron_gen_refs.py --print_cfg [--fmt=<format>]
+```
 
-	python refs_vault_gen.py print_cfg [--fmt=<format>]
-
-# Generation:
+## Generation:
 
 when running
-	python refs_vault_gen.py gen [cfg_path] [**kwargs]
+```bash
+dendron_gen_refs.py [cfg_path] [**kwargs]
+```
 
 `cfg_path` should be the location of a yaml or json config file
 any of those items can be overwritten as keyword arguments using 
@@ -33,6 +41,19 @@ the expected config elements, types, and default values are:
 	kebab_case_tag_names : bool = False
 	template_path : Optional[str] = None
 ```
+
+## Examples:
+
+```bash
+dendron_gen_refs.py gen --bib_filename=<bibtex_file> --vault_loc=<output_dir>
+```
+
+Or, we could create a config file such as [`examples/custom_cfg.json`](examples/custom_cfg.json) and pass it in as
+```bash
+dendron_gen_refs.py gen <path_to_config_file>
+```
+
+> **Note:** if you pass a config file, the script will change its directory to that of the config file, to allow paths to be specified relative to that file.
 
 """
 
