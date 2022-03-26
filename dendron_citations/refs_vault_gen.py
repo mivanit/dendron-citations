@@ -192,7 +192,8 @@ def gen(cfg_path : Optional[str], **kwargs):
 	file_data : Dict[str, Any] = dict()
 	if cfg_path is not None:
 		cfg_dir : str = os.path.dirname(cfg_path)
-		os.chdir(cfg_dir)
+		if cfg_dir != '':
+			os.chdir(cfg_dir)
 		cfg_path_rel : str = os.path.relpath(cfg_path, cfg_dir)
 
 		# load config from file
