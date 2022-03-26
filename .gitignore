@@ -1,13 +1,12 @@
-examples/**
-!examples/*.bib
-!examples/*_cfg.yml
-!examples/*_cfg.json
-!examples/*_cfg.mustache
+# examples/**
+# !examples/*.bib
+# !examples/*_cfg.yml
+# !examples/*_cfg.json
+# !examples/*.mustache
 examples/vault/**
-!examples/vault/*.md
+!examples/vault/**.md
 
 env/**
-
 .vscode/**
 
 # default python ignores

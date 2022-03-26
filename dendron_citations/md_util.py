@@ -1,5 +1,7 @@
+"""provides `PandocMarkdown` class"""
+
 from typing import (
-	Any,
+	Any, Optional,
 	Dict, List, Tuple, Iterable,
 	Callable,
 )
@@ -20,7 +22,9 @@ def keylist_access_nested_dict(
 		keys : List[str],
 	) -> Tuple[dict,str]:
 	"""given a keylist `keys`, return (x,y) where x[y] is d[keys]
-	by pretending that `d` can be accessed dotlist-style, with keys in the list being keys to successive nested dicts, we can provide both read and write access to the element of `d` pointed to by `keys`
+	by pretending that `d` can be accessed dotlist-style, 
+	with keys in the list being keys to successive nested dicts, 
+	we can provide both read and write access to the element of `d` pointed to by `keys`
 	
 	### Parameters:
 	 - `d : Dict[str,Any]`
@@ -30,7 +34,8 @@ def keylist_access_nested_dict(
 	
 	### Returns:
 	 - `Tuple[dict,str]` 
-	   dict is the final layer dict which contains the element pointed to by `keys`, and the string is the last key in `keys`
+	   dict is the final layer dict which contains the element pointed to by `keys`, 
+	   and the string is the last key in `keys`
 	"""
 	
 	fin_dict : dict = d
@@ -63,7 +68,8 @@ def fm_add_to_list(
 	) -> dict:
 	"""add things to the frontmatter
 	
-	given `keylist`, append to `data[keylist[0]][keylist[1]][...]` if it exists and does not contain `insert_data`
+	given `keylist`, append to `data[keylist[0]][keylist[1]][...]` 
+	if it exists and does not contain `insert_data`
 	if `data[keylist[0]][keylist[1]][...]` does not exist, create it and set it to `insert_data`
 	"""
 	fin_dict,fin_key = keylist_access_nested_dict(data,keylist)
@@ -131,9 +137,14 @@ DEFAULT_KEYORDER : Tuple[str,...] = (
 # either not handled properly by pyyaml, or not understood properly 
 # by dendron's yaml parser. basically, yaml is weird and annoying.
 # so, we set the width very high as a result to prevent this
-DEFAULT_WRITER : Callable = lambda x : yaml.dump(x, default_flow_style = None, sort_keys = False, width = 9999)
+DEFAULT_WRITER : Callable = lambda x : yaml.dump(
+	x, 
+	default_flow_style = None, 
+	sort_keys = False, 
+	width = 9999,
+)
 
-class PandocMarkdown(object):
+class PandocMarkdown:
 	"""class for handling pandoc-style markdown and frontmatter"""
 
 	def __init__(
@@ -185,7 +196,9 @@ class PandocMarkdown(object):
 
 		# check the zeroth section is empty
 		if sections[0].strip():
-			raise ValueError(f"file does not start with yaml front matter, found at start of file: {sections[0]}")
+			raise ValueError(
+				f"file does not start with yaml front matter, found at start of file: {sections[0]}"
+			)
 		
 		if len(sections) < 3:
 			raise ValueError(f'missing sections in file {filename}, check delims')
@@ -227,19 +240,18 @@ class PandocMarkdown(object):
 			self.content.lstrip(),
 		])
 
-	DEFAULT_FRONTMATTER : dict = {
-		"bibliography": ["../refs_miv.bib", "../refs_knc.bib"],
-		"__defaults__": {	"filters": ["$FILTERS$/get_markdown_links.py"]},
-		"traitIds": ["journalNote"],
-		"desc": '',
-	}
-
 	@staticmethod
-	def get_dendron_template(fm : dict = DEFAULT_FRONTMATTER, do_id : bool = False) -> 'PandocMarkdown':
+	def get_dendron_template(
+			fm : Optional[Dict[str,Any]] = None, 
+			do_id : bool = False,
+		) -> 'PandocMarkdown':
 		"""create a template pandoc markdown object for use with dendron
 		
 		specifically, created frontmatter elements "id", "created", and "updated"
 		"""
+		if fm is None:
+			fm = dict()
+
 		file = PandocMarkdown()
 
 		file.yaml_data = deepcopy(fm)
