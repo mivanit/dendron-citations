@@ -48,12 +48,15 @@ the expected config elements, types, and default values are:
 dendron_gen_refs.py gen --bib_filename=<bibtex_file> --vault_loc=<output_dir>
 ```
 
-Or, we could create a config file such as [`examples/custom_cfg.json`](examples/custom_cfg.json) and pass it in as
+Or, we could create a config file such as 
+[`examples/custom_cfg.json`](examples/custom_cfg.json)
+and pass it in as
 ```bash
 dendron_gen_refs.py gen <path_to_config_file>
 ```
 
-> **Note:** if you pass a config file, the script will change its directory to that of the config file, to allow paths to be specified relative to that file.
+> **Note:** if you pass a config file, the script will change its directory 
+to that of the config file, to allow paths to be specified relative to that file.
 
 """
 

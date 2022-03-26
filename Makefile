@@ -5,7 +5,7 @@ ENV = env
 BSP = "======================================================================"
 
 # PYLINT_OPTIONS = --disable=invalid-name,bad-indentation,use-list-literal,use-dict-literal,superfluous-parens,trailing-whitespace,trailing-newlines,too-many-instance-attributes
-PYLINT_OPTIONS = --disable=invalid-name,bad-indentation,use-list-literal,use-dict-literal,superfluous-parens,trailing-whitespace,trailing-newlines,too-many-instance-attributes,missing-function-docstring,wrong-import-position
+PYLINT_OPTIONS = --disable=invalid-name,bad-indentation,use-list-literal,use-dict-literal,superfluous-parens,trailing-whitespace,trailing-newlines,too-many-instance-attributes,missing-function-docstring,wrong-import-position,fixme
 
 # detecting os
 ifeq ($(OS),Windows_NT)
