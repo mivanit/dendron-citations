@@ -10,10 +10,10 @@ PYLINT_OPTIONS = --disable=invalid-name,bad-indentation,use-list-literal,use-dic
 # detecting os
 ifeq ($(OS),Windows_NT)
 	detected_os = Windows
-	FLAG_PTHREAD = -lpthread
+	ENV_PATH = $(ENV)/Scripts
 else
 	detected_os = Linux
-	FLAG_PTHREAD = -pthread
+	ENV_PATH = $(ENV)/bin
 endif
 
 
@@ -25,13 +25,13 @@ setup_env:
 	python -m venv env
 
 	@printf "$(BSP)\n# installing dev dependencies  \n$(BSP)\n"
-	$(ENV)/Scripts/pip install -r requirements_dev.txt
+	$(ENV_PATH)/pip install -r requirements_dev.txt
 
 	@printf "$(BSP)\n# installing package  \n$(BSP)\n"
-	$(ENV)/Scripts/pip install -e .
+	$(ENV_PATH)/pip install -e .
 
 # @printf "$(BSP)\n# installing package dependencies  \n$(BSP)\n"
-# $(ENV)/Scripts/pip install -r requirements.txt
+# $(ENV_PATH)/pip install -r requirements.txt
 
 
 	@printf "$(BSP)\n# installation complete!  \n$(BSP)\n"
@@ -40,7 +40,7 @@ setup_env:
 env_clean:
 	@echo "# clean up the existing virtual environment"
 	
-	rm -rf $(ENV)/
+	rm -rf $(ENV_PATH)/
 
 .PHONY: check
 check:
@@ -50,10 +50,10 @@ check:
 	@echo "$(SOURCE)"
 	
 	@printf "$(BSP)\n# running mypy  \n$(BSP)\n"
-	$(ENV)/Scripts/mypy $(SOURCE)
+	$(ENV_PATH)/mypy $(SOURCE)
 
 	@printf "$(BSP)\n# running pylint  \n$(BSP)\n"
-	$(ENV)/Scripts/pylint $(SOURCE) $(PYLINT_OPTIONS)
+	$(ENV_PATH)/pylint $(SOURCE) $(PYLINT_OPTIONS)
 
 	@printf "$(BSP)\n# type checking complete!  \n$(BSP)\n"
 
@@ -75,8 +75,12 @@ help:
 	@echo ":"
 	@cat Makefile | sed -n '/^\.PHONY: / h; /\(^\t@*echo\|^\t:\)/ {H; x; /PHONY/ s/.PHONY: \(.*\)\n.*"\(.*\)"/    make \1\t\2/p; d; x}'| sort -k2,2 |expand -t 20
 
-	@echo "# detected source files:"
+	@printf "\n# detected source files:\n"
 	@echo "    $(SOURCE)"
 
-	@echo "# activate env using:"
-	@echo "    source $(ENV)/Scripts/activate"
+
+	@printf "\n# detected os:"
+	@echo "    $(OS)    ($(detected_os))"
+
+	@printf "\n# activate env using:\n"
+	@echo "    source $(ENV_PATH)/activate"

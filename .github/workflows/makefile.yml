@@ -14,6 +14,14 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.10
+
+    - name: check python
+      run: python --version
+
     - name: install dependencies and package
       run: make setup_env
     
