@@ -2,8 +2,9 @@
 
 
 # standard library imports
+from dataclasses import dataclass
 from typing import (
-	Dict, List, Tuple, NamedTuple,
+	Dict, List,
 	Callable,
 )
 
@@ -37,11 +38,6 @@ from dendron_citations.config import Config
 
 
 GLOBAL_AUTHORS_DICT : Dict[str,List[str]] = defaultdict(list)
-
-BibLib_like_Name = NamedTuple('BibLib_like_Name', [
-	('first',str),
-	('last',str),
-])
 
 
 def strip_bibtex_fmt(s : str) -> str:
@@ -94,8 +90,15 @@ def _name_to_tag_helper(name : str, kebab_case_tag_names : bool) -> str:
 	).lower()
 
 
-# TODO: make this type work properly
-Biblib_Name_Type = Tuple
+@dataclass(frozen = True)
+class Biblib_Name_Type:
+	"""copies interface of biblib.Name
+	`class Name(collections.namedtuple('Name', 'first von last jr'))`
+	"""
+	first : str = ''
+	von : str = ''
+	last : str = ''
+	jr : str = ''
 
 def name_to_tag(name : Biblib_Name_Type, cfg : Config) -> str:
 	"""convert a bibtex name to a tag name
@@ -108,7 +111,7 @@ def name_to_tag(name : Biblib_Name_Type, cfg : Config) -> str:
 	if (name.first.strip() == '') and (name.last.strip().count(' ') > 0):
 		temp : List[str] = name.last.strip('}{ \t').split(' ')
 		if temp[0]:
-			return name_to_tag(BibLib_like_Name(first = temp[0], last = temp[-1]), cfg)
+			return name_to_tag(Biblib_Name_Type(first = temp[0], last = temp[-1]), cfg)
 
 	first : str = _name_to_tag_helper(name.first, kebab_case_tag_names = cfg.kebab_case_tag_names)
 	last : str = _name_to_tag_helper(name.last, kebab_case_tag_names = cfg.kebab_case_tag_names)
